@@ -8,7 +8,6 @@ raw.skyline <- read.csv(file="data/data_DDA_iPRG_Skyline/input/ABRF2015_Skyline_
 
 # Check the first 6 rows of dataset
 head(raw.skyline)
-
 # total number of unique protein name
 length(unique(raw.skyline$Protein))
 
