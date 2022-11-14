@@ -28,14 +28,14 @@ sum(raw.skyline$Truncated == 'True')
 
 
 ## read annotation file
-annot.skyline <- read.csv(file="input/ABRF2015_Skyline_annotation.csv")
+annot.skyline <- read.csv(file="data/data_DDA_iPRG_Skyline/input/ABRF2015_Skyline_annotation.csv")
 annot.skyline
 
 setdiff(unique(raw.skyline$FileName), annot.skyline$Run)
 setdiff(annot.skyline$Run, unique(raw.skyline$FileName))
 
 ## bad example
-annot.wrong <- read.csv(file="input/ABRF2015_Skyline_annotation_wrong_example.csv")
+annot.wrong <- read.csv(file="data/data_DDA_iPRG_Skyline/input/ABRF2015_Skyline_annotation_wrong_example.csv")
 annot.wrong
 
 setdiff(unique(raw.skyline$FileName), annot.wrong$Run)
@@ -56,10 +56,10 @@ sum(is.na(input.skyline$Intensity))
 sum(!is.na(input.skyline$Intensity) & input.skyline$Intensity==0)
 
 # save the work
-save(input.skyline, file='output/input.skyline.rda')
+save(input.skyline, file='data/data_DDA_iPRG_Skyline/output/input.skyline.rda')
 
 ## Load the pre-processed data of Skyline output
-load(file='output/input.skyline.rda')
+load(file='data/data_DDA_iPRG_Skyline/output/input.skyline.rda')
 
 ## data processing
 quant.skyline <- dataProcess(raw = input.skyline, 
@@ -71,7 +71,7 @@ quant.skyline <- dataProcess(raw = input.skyline,
                              cutoffCensored='minFeature',
                              maxQuantileforCensored = 0.999)
 
-save(quant.skyline, file='output/quant.skyline.rda')
+save(quant.skyline, file='data/data_DDA_iPRG_Skyline/output/quant.skyline.rda')
 
 # show the name of outputs
 names(quant.skyline)
@@ -95,40 +95,40 @@ dataProcessPlots(data = quant.skyline,
                  type="QCplot", 
                  width=7, height=7,
                  which.Protein = 'allonly',
-                 address='output/ABRF_skyline_equalizeNorm_')
+                 address='data/data_DDA_iPRG_Skyline/output/ABRF_skyline_equalizeNorm_')
 
 # if you have many MS runs, adjust width of plot (makd wider)
 # Profile plot for the data with equalized median method
 dataProcessPlots(data = quant.skyline, 
                  type="Profileplot", 
                  width=7, height=7,
-                 address="output/ABRF_skyline_equalizeNorm_")
+                 address="data/data_DDA_iPRG_Skyline/output/ABRF_skyline_equalizeNorm_")
 
 dataProcessPlots(data = quant.skyline, 
                  type="Profileplot", 
                  featureName="NA",
                  width=7, height=7,
                  which.Protein = 'sp|P44015|VAC2_YEAST',
-                 address="output/ABRF_skyline_equalizeNorm_P44015_")
+                 address="data/data_DDA_iPRG_Skyline/output/ABRF_skyline_equalizeNorm_P44015_")
 
 dataProcessPlots(data = quant.skyline, 
                  type="Profileplot", 
                  featureName="NA",
                  width=7, height=7,
                  which.Protein = 'sp|P55249|ZRT4_YEAST',
-                 address="output/ABRF_skyline_equalizeNorm_P55249_")
+                 address="data/data_DDA_iPRG_Skyline/output/ABRF_skyline_equalizeNorm_P55249_")
 
 # not run
 dataProcessPlots(data = quant.skyline, 
                  type="conditionplot", 
                  width=7, height=7,
-                 address="output/ABRF_skyline_equalizeNorm_")
+                 address="data/data_DDA_iPRG_Skyline/output/ABRF_skyline_equalizeNorm_")
 
 dataProcessPlots(data = quant.skyline, 
                  type="conditionplot", 
                  width=7, height=7,
                  which.Protein = 'sp|P44015|VAC2_YEAST',
-                 address="output/ABRF_skyline_equalizeNorm_P44015_")
+                 address="data/data_DDA_iPRG_Skyline/output/ABRF_skyline_equalizeNorm_P44015_")
 
 #### No imputation, TMP summarization only
 quant.skyline.TMPonly <- dataProcess(raw = input.skyline, 
@@ -175,8 +175,8 @@ test.skyline <- groupComparison(contrast.matrix=comparison, data=quant.skyline)
 
 Skyline.result <- test.skyline$ComparisonResult
 
-save(Skyline.result, file='output/Skyline.result.rda')
-write.csv(Skyline.result, file='output/testResult_ABRF_skyline.csv')
+save(Skyline.result, file='data/data_DDA_iPRG_Skyline/output/Skyline.result.rda')
+write.csv(Skyline.result, file='data/data_DDA_iPRG_Skyline/output/testResult_ABRF_skyline.csv')
 
 
 #### subset of significant comparisons
@@ -198,17 +198,17 @@ nrow(SignificantProteinsUpInDiseased)
 ### Visualization of differentially abundant proteins
 groupComparisonPlots(data = Skyline.result, 
                      type = 'VolcanoPlot',
-                     address = 'output/testResult_ABRF_skyline_')
+                     address = 'data/data_DDA_iPRG_Skyline/output/testResult_ABRF_skyline_')
 
 groupComparisonPlots(data = Skyline.result, 
                      type = 'VolcanoPlot',
                      sig = 0.05, 
                      FCcutoff = 2^2, 
-                     address = 'output/testResult_ABRF_skyline_FCcutoff4_')
+                     address = 'data/data_DDA_iPRG_Skyline/output/testResult_ABRF_skyline_FCcutoff4_')
 
 groupComparisonPlots(Skyline.result, 
                      type="ComparisonPlot", 
-                     address="output/testResult_ABRF_skyline_")
+                     address="data/data_DDA_iPRG_Skyline/output/testResult_ABRF_skyline_")
 
 Skyline.result[Skyline.result$Protein == 'sp|P44015|VAC2_YEAST', ]
 
