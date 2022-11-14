@@ -47,12 +47,18 @@ input.skyline <- SkylinetoMSstatsFormat(raw.skyline,
                                         annotation=annot.skyline,
                                         removeProtein_with1Feature = TRUE)
 head(input.skyline)
+
+# Always double check that there are the right amount of runs at this point
 unique(input.skyline$Run)
 
 ## Preliminary check
 
 length(unique(input.skyline$ProteinName)) 
+
+# unique to skyline, there are two different ways missing values are reported. Both as 0, and as NA
+# Count NAs
 sum(is.na(input.skyline$Intensity)) 
+# count value 0
 sum(!is.na(input.skyline$Intensity) & input.skyline$Intensity==0)
 
 # save the work
@@ -62,13 +68,14 @@ save(input.skyline, file='data/data_DDA_iPRG_Skyline/output/input.skyline.rda')
 load(file='data/data_DDA_iPRG_Skyline/output/input.skyline.rda')
 
 ## data processing
+# throwing "unused argument error" for `cutoffCensored='minFeature'`, commented out
 quant.skyline <- dataProcess(raw = input.skyline, 
                              logTrans=2, 
-                             normalization = 'equalizeMedians',
-                             summaryMethod = 'TMP', 
-                             MBimpute=TRUE,
+                             normalization = 'equalizeMedians', ## there are four different methods for normalisation in MSstats, this one assumes the majority of peaks are unchanged.
+                             summaryMethod = 'TMP', # Tukey median polish method
+                             MBimpute=TRUE, # this imputes "model based", this is for missing values??
                              censoredInt='0', ## important for Skyline
-                             cutoffCensored='minFeature',
+                             # cutoffCensored='minFeature', 
                              maxQuantileforCensored = 0.999)
 
 save(quant.skyline, file='data/data_DDA_iPRG_Skyline/output/quant.skyline.rda')
