@@ -39,11 +39,11 @@ save(input.maxquant, file='data/data_DDA_iPRG_MaxQuant/output/input.maxquant.rda
 
 quant.maxquant <- dataProcess(raw = input.maxquant, 
                               logTrans=2, 
-                              #normalization = 'quantile',
+                              normalization = 'equalizeMedians',
                               summaryMethod = 'TMP', 
                               MBimpute=TRUE,
                               censoredInt='NA',
-                              cutoffCensored='minFeature',
+                             # cutoffCensored='minFeature',
                               maxQuantileforCensored = 0.999)
 
 dataProcessPlots(data = quant.maxquant, 

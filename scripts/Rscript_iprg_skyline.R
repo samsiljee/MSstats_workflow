@@ -69,6 +69,7 @@ load(file='data/data_DDA_iPRG_Skyline/output/input.skyline.rda')
 
 ## data processing
 # throwing "unused argument error" for `cutoffCensored='minFeature'`, commented out
+# However, this issue is addressed in this post; https://groups.google.com/g/msstats/c/vcpYDUJUcHw/m/epzjk6WWAAAJ
 quant.skyline <- dataProcess(raw = input.skyline, 
                              logTrans=2, 
                              normalization = 'equalizeMedians', ## there are four different methods for normalisation in MSstats, this one assumes the majority of peaks are unchanged.
