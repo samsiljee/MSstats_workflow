@@ -11,25 +11,25 @@
 ## Load MSstats package
 ##############################
 library(MSstats)
-
+library(tidyverse)
 ##############################
 ## Read Proteome Discoverer report
 ##############################
-raw <- read.csv("data/Proteome_Discoverer_example/input/ControlMixture_DDA_ProteomeDiscoverer_input.csv", stringsAsFactors=F) # the data file
+raw <- read.csv("data/Proteome_Discoverer_example/input/ControlMixture_DDA_ProteomeDiscoverer_input.csv", stringsAsFactors = TRUE)
 
-annot <- read.csv('data/Proteome_Discoverer_example/input/ControlMixture_DDA_ProteomeDiscoverer_annotation.csv')
+annot <- read.csv('data/Proteome_Discoverer_example/input/ControlMixture_DDA_ProteomeDiscoverer_annotation.csv', stringsAsFactors = TRUE)
 
 ##############################
 ## Make MSstats required format
 ##############################
-quant <- PDtoMSstatsFormat(raw, 
+input <- PDtoMSstatsFormat(raw, 
                            annotation=annot,
                            removeProtein_with1Peptide=FALSE)
 
-head(quant)
+head(input)
 
 ## count the number of proteins
-length(unique(quant$ProteinName)) # 1292
+input$ProteinName %>% unique %>% length # 1292
 
 
 ##############################
@@ -39,7 +39,7 @@ length(unique(quant$ProteinName)) # 1292
 ## See discussion; https://groups.google.com/g/msstats/c/WLZQz1-QdiA/m/3yjqu4TBAAAJ
 ##############################
 
-processed.quant <- dataProcess(quant,
+processed.quant <- dataProcess(input,
                                normalization = 'equalizeMedians',
                                summaryMethod="TMP",
                                censoredInt="NA",
