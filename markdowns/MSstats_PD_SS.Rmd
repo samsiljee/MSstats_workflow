@@ -18,16 +18,15 @@ Save the file and place it in the input
 
 ```{r data import, echo = FALSE}
 # read main data
-raw_IT <- read.csv("data/OT_vs_IT/Pilot_22-091_1ul_50cm_IT_PSMs.txt", stringsAsFactors = TRUE)
-raw_OT <- read.csv("data/OT_vs_IT/Pilot_22-091_1ul_50cm_OT_PSMs.txt", stringsAsFactors = TRUE)
+raw_IT <- read.csv("~/Coding/MSstats-tutorial/data/OT_vs_IT/Pilot_22091_1ul_50cm_IT_PSMs.txt", sep = "\t", stringsAsFactors = TRUE)
+raw_OT <- read.csv("~/Coding/MSstats-tutorial/data/OT_vs_IT/Pilot_22091_1ul_50cm_OT_PSMs.txt", sep = "\t", stringsAsFactors = TRUE)
 raw <- rbind(raw_IT, raw_OT)
 
 # read annotations
-annot <- read.csv('data/Proteome_Discoverer_example/input/ControlMixture_DDA_ProteomeDiscoverer_annotation.csv', stringsAsFactors = TRUE)
+annot <- read.csv("~/Coding/MSstats-tutorial/data/OT_vs_IT/OT_vs_IT_annotation.csv", sep = ",", stringsAsFactors = TRUE)
 
-##############################
-## Make MSstats required format
-##############################
+# format for `MSstats`
+# currently this is not working. I suspect there's an issue with the column names of the PSMs export from PD not matching the expected column names in the `PDtoMSstatsFormat` call. See more here; https://groups.google.com/g/msstats/c/FR4-69Z_Neo
 input <- PDtoMSstatsFormat(raw, 
                            annotation=annot,
                            removeProtein_with1Peptide=FALSE)
