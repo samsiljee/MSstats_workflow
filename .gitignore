@@ -1,5 +1,5 @@
-# Data files
-data/*
+# Data files too big for github
+data_to_ignore/*
 # History files
 .Rhistory
 .Rapp.history
