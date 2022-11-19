@@ -15,3 +15,6 @@ https://computationalproteomics2020.khoury.northeastern.edu/
 
 And talks from 2022;
 https://computationalproteomics.khoury.northeastern.edu/
+
+Google group for troubleshooting `MSstats`;
+https://groups.google.com/g/msstats
