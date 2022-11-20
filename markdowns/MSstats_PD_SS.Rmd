@@ -34,16 +34,15 @@ input <- PDtoMSstatsFormat(raw,
 head(input)
 
 ## count the number of proteins
-input$ProteinName %>% unique %>% length # 1292
+input$ProteinName %>% unique %>% length
+```
 
+# Data Processing
+including Normalization, decide censored cutoff, protein-level summarization
+Argument deleted, to be compatible with newer version of `MSstats`; 'cutoffCensored = "minFeature"'
+See discussion; https://groups.google.com/g/msstats/c/WLZQz1-QdiA/m/3yjqu4TBAAAJ
 
-##############################
-## dataProcess
-## including Normalization, decide censored cutoff, protein-level summarization
-## Argument deleted, to be compatible with newer version of `MSstats`; 'cutoffCensored = "minFeature"'
-## See discussion; https://groups.google.com/g/msstats/c/WLZQz1-QdiA/m/3yjqu4TBAAAJ
-##############################
-
+```{r data processing, echo = FALSE}
 processed.quant <- dataProcess(input,
                                normalization = 'equalizeMedians',
                                summaryMethod="TMP",
@@ -52,11 +51,11 @@ processed.quant <- dataProcess(input,
                                maxQuantileforCensored=0.999)
 
 save(processed.quant, file='data/Proteome_Discoverer_example/output/processed.quant.rda')
+```
 
-##############################
-## Data visualization
-##############################
+# Data visualisation
 
+```{r data visualisation, echo = FALSE}
 dataProcessPlots(processed.quant, type="QCplot", 
                  ylimDown=0, 
                  which.Protein = 'allonly',
@@ -74,12 +73,12 @@ dataProcessPlots(processed.quant, type="Conditionplot",
                  ylimDown=0, 
                  width=7, height=7,  
                  address="data/Proteome_Discoverer_example/output/ControlMixture_DDA_ProteomeDiscoverer_")
+```
 
+## Model-based comparison, and adjusted p-value
 
-##############################
-## Model-based comparison + adjust p-value
-##############################
-
+```{r model based comparison, echo = FALSE}
+# generate compariosn matrix
 comparison1<-matrix(c(1,-1,0,0,0),nrow=1)
 comparison2<-matrix(c(1,0,-1,0,0),nrow=1)
 comparison3<-matrix(c(1,0,0,-1,0),nrow=1)
@@ -99,17 +98,14 @@ colnames(comparison) <- paste("Condition", 1:5, sep = "")
 test.MSstats <- groupComparison(contrast.matrix=comparison, data=processed.quant)
 test.MSstats <- test.MSstats$ComparisonResult
 
-##############################
-## save the result
-##############################
-
+# save the results
 save(test.MSstats, file='data/Proteome_Discoverer_example/output/test.MSstats.rda')
 write.csv(test.MSstats, file='data/Proteome_Discoverer_example/output/ControlMixture_DDA_ProteomeDiscoverer_testResult_byMSstats.csv')
+```
 
+# Comparison plots
 
-##############################
-## Visualization of result
-##############################
+```{r comparison plots, echo = FALSE}
 groupComparisonPlots(data=test.MSstats, type="VolcanoPlot",
                      width=6, height=6,
                      address="data/Proteome_Discoverer_example/output/ControlMixture_DDA_ProteomeDiscoverer_")
