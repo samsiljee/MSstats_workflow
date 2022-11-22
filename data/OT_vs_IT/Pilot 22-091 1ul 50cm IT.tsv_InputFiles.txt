@@ -1,2 +1,0 @@
-"Input Files Workflow ID"	"Input Files Workflow Level"	"Input Files "	"File ID"	"File Name"	"Creation Date"	"RT Range in min"	"Instrument Name"	"Software Revision"
-"-620"	"1"	"9215"	"F1"	"E:\Sam Siljee\pilot nov 2022\Sam_pilot_50cm_091_1_IT_1ul_NOV2022.raw"	"11/10/2022 10:44:18"	"0.00 - 95.00"	"Orbitrap Fusion Lumos"	"3.5.3890"
