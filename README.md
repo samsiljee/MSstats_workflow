@@ -18,3 +18,7 @@ https://computationalproteomics.khoury.northeastern.edu/
 
 Google group for troubleshooting `MSstats`;
 https://groups.google.com/g/msstats
+
+##Issues, ideas and thoughts
+It might be easiest to do basic QC using the artMS package;
+https://www.bioconductor.org/packages/devel/bioc/vignettes/artMS/inst/doc/artMS_vignette.html#1_OVERVIEW
