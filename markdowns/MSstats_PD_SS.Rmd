@@ -20,7 +20,8 @@ Save the file and place it in the input
 # read main data
 raw_IT <- read.csv("~/Coding/MSstats-tutorial/data/OT_vs_IT/Pilot_22091_1ul_50cm_IT_PSMs.txt", sep = "\t", stringsAsFactors = TRUE)
 raw_OT <- read.csv("~/Coding/MSstats-tutorial/data/OT_vs_IT/Pilot_22091_1ul_50cm_OT_PSMs.txt", sep = "\t", stringsAsFactors = TRUE)
-raw <- rbind(raw_IT, raw_OT)
+# Manually adding the columns required that throw an error in the `PDtoMSstatsFormat` call
+raw <- rbind(raw_IT, raw_OT) %>% mutate(ProteinGroupAccessions = .$Master.Protein.Accessions)
 
 # read annotations
 annot <- read.csv("~/Coding/MSstats-tutorial/data/OT_vs_IT/OT_vs_IT_annotation.csv", sep = ",", stringsAsFactors = TRUE)
