@@ -18,9 +18,9 @@ Save the file and place it in the input
 
 ```{r data import, echo = FALSE}
 # read main data. Originally I had analysed the samples separately, however it gave an error where the precursor area was not given. This is solved by running the search with LFQ and all raw files at once.
-#raw_IT <- read.csv("~/Coding/MSstats-tutorial/data/OT_vs_IT/Pilot_22091_1ul_50cm_IT_PSMs.txt", sep = "\t", stringsAsFactors = TRUE)
-#raw_OT <- read.csv("~/Coding/MSstats-tutorial/data/OT_vs_IT/Pilot_22091_1ul_50cm_OT_PSMs.txt", sep = "\t", stringsAsFactors = TRUE)
-raw_quan <- read.csv("~/Coding/MSstats-tutorial/data/OT_vs_IT/Quan_Rep_22-091_1ul_50cm_OT_IT_PSMs.txt", sep = "\t", stringsAsFactors = TRUE)
+#raw_IT <- read.csv("~/Coding/MSstats-tutorial/data/OT_vs_IT/Pilot_22091_1ul_50cm_IT_PSMs.txt", sep = "\t", stringsAsFactors = FALSE)
+#raw_OT <- read.csv("~/Coding/MSstats-tutorial/data/OT_vs_IT/Pilot_22091_1ul_50cm_OT_PSMs.txt", sep = "\t", stringsAsFactors = FALSE)
+raw_quan <- read.csv("~/Coding/MSstats-tutorial/data/OT_vs_IT/Quan_Rep_22-091_1ul_50cm_OT_IT_PSMs.txt", sep = "\t", stringsAsFactors = FALSE)
 # Manually adding the columns required that throw an error in the `PDtoMSstatsFormat` call
 raw <- raw_quan %>% mutate(ProteinGroupAccessions = .$Master.Protein.Accessions, PrecursorArea = .$Precursor.Abundance, Run = .$Spectrum.File)
 
