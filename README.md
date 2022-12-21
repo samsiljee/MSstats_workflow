@@ -19,6 +19,11 @@ https://computationalproteomics.khoury.northeastern.edu/
 Google group for troubleshooting `MSstats`;
 https://groups.google.com/g/msstats
 
-## Issues, ideas and thoughts
+## Ideas and thoughts
 It might be easiest to do basic QC using the artMS package;
 https://www.bioconductor.org/packages/devel/bioc/vignettes/artMS/inst/doc/artMS_vignette.html#1_OVERVIEW
+
+## Current issues
+Currently I'm struggling to get the function `PDtoMSstatsFormat` to work. Initially I was missing the columns for "ProteinGroupAccessions" and "PrecursorArea", however I renamed the column"Master.Protein.Accessions" from the original dataset. "PrecursorArea" can be renamed from the "Precursor.Area" or "Precursor.Abundance" column, but note that these are only produced when running a quantified search in Proteome Discoverer.
+However, I'm still having other issues, being discussed here:
+https://groups.google.com/g/msstats/c/fHa3MqRtMss/m/PCLGjy0SCAAJ
