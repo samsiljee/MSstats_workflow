@@ -24,21 +24,30 @@ Save the file and place it in the input
 #raw_OT <- read.csv("~/Coding/MSstats-tutorial/data/OT_vs_IT/Pilot_22091_1ul_50cm_OT_PSMs.txt",
 #                   sep = "\t",
 #                   stringsAsFactors = FALSE)
-raw_quan <- read.csv("~/Coding/MSstats-tutorial/data/OT_vs_IT/Quan_Rep_22-091_1ul_50cm_OT_IT_PSMs.txt",
+#raw_quan <- read.csv("~/Coding/MSstats-tutorial/data/OT_vs_IT/Quan_Rep_22-091_1ul_50cm_OT_IT_PSMs.txt",
+#                     sep = "\t",
+#                     stringsAsFactors = FALSE)
+raw_col_quan <- read.csv("~/Coding/MSstats-tutorial/data/OT_vs_IT/15_50_quan_PSMs.txt",
                      sep = "\t",
                      stringsAsFactors = FALSE)
 # Manually adding the columns required that throw an error in the `PDtoMSstatsFormat` call
-raw <- raw_quan %>%
+#raw <- raw_quan %>%
+#  mutate(ProteinGroupAccessions = .$Master.Protein.Accessions,
+#         PrecursorArea = .$Precursor.Abundance,
+#         Run = .$Spectrum.File)
+raw <- raw_col_quan %>%
   mutate(ProteinGroupAccessions = .$Master.Protein.Accessions, PrecursorArea = .$Precursor.Abundance, Run = .$Spectrum.File)
 
 # read annotations
-annot <- read.csv("~/Coding/MSstats-tutorial/data/OT_vs_IT/OT_vs_IT_annotation.csv", sep = ",", stringsAsFactors = TRUE)
+#annot <- read.csv("~/Coding/MSstats-tutorial/data/OT_vs_IT/OT_vs_IT_annotation.csv", sep = ",", stringsAsFactors = TRUE)
+annot_col <- read.csv("~/Coding/MSstats-tutorial/data/OT_vs_IT/col_annotation.csv", sep = ",", stringsAsFactors = TRUE)
 
 # format for `MSstats`
 # currently this is not working. I suspect there's an issue with the column names of the PSMs export from PD not matching the expected column names in the `PDtoMSstatsFormat` call. See more here; https://groups.google.com/g/msstats/c/FR4-69Z_Neo
 input <- PDtoMSstatsFormat(raw, 
-                           annotation=annot,
-                           removeProtein_with1Peptide=FALSE)
+                           annotation = annot_col,
+                           removeProtein_with1Peptide = FALSE,
+                           removeFewMeasurements = FALSE)
 
 head(input)
 
