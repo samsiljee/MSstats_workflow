@@ -92,7 +92,7 @@ dataProcessPlots(processed.quant, type="Profileplot",
 dataProcessPlots(processed.quant, type="Conditionplot", 
                  ylimDown=0, 
                  width=7, height=7,  
-                 address="data/Proteome_Discoverer_example/output/ControlMixture_DDA_ProteomeDiscoverer_")
+                 address="data/OT_vs_IT/output/ControlMixture_DDA_ProteomeDiscoverer_")
 ```
 
 ## Model-based comparison, and adjusted p-value
