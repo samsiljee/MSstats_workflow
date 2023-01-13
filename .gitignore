@@ -1,7 +1,8 @@
 # Data files too big for github
 data_to_ignore/*
-# Results of QC and Profile plot output
+# Results of QC and Profile plot output, both the pdf reports, and the .rda data intermediates
 data/OT_vs_IT/output/*.pdf
+data/OT_vs_IT/output/*.rda
 # History files
 .Rhistory
 .Rapp.history
