@@ -68,24 +68,26 @@ processed.quant <- dataProcess(input,
                                MBimpute=TRUE,
                                maxQuantileforCensored=0.999)
 
-save(processed.quant, file='data/Proteome_Discoverer_example/output/processed.quant.rda')
+save(processed.quant, file='data/OT_vs_IT/output/processed.quant.rda')
 ```
 
 # Data visualisation
 
 ```{r data visualisation, echo = FALSE}
+#THis produces a boxplot, possibly this is to demonstrate normalisation?
 dataProcessPlots(processed.quant, type="QCplot", 
                  ylimDown=0, 
                  which.Protein = 'allonly',
                  width=7, height=7,  
-                 address="data/Proteome_Discoverer_example/output/ControlMixture_DDA_ProteomeDiscoverer_")
+                 address="data/OT_vs_IT/output/ControlMixture_DDA_ProteomeDiscoverer_")
 
+#Produces individual plots for the different proteins
 dataProcessPlots(processed.quant, type="Profileplot", 
                  ylimDown=0, 
                  originalPlot = TRUE,
                  summaryPlot = TRUE,
                  width=7, height=7,  
-                 address="data/Proteome_Discoverer_example/output/ControlMixture_DDA_ProteomeDiscoverer_")
+                 address="data/OT_vs_IT/output/ControlMixture_DDA_ProteomeDiscoverer_")
 
 dataProcessPlots(processed.quant, type="Conditionplot", 
                  ylimDown=0, 
