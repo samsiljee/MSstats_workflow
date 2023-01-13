@@ -1,5 +1,7 @@
 # Data files too big for github
 data_to_ignore/*
+# Results of QC and Profile plot output
+data/OT_vs_IT/output/*.pdf
 # History files
 .Rhistory
 .Rapp.history
