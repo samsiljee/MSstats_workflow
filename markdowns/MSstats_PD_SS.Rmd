@@ -1,66 +1,73 @@
 ---
-title: "Untitled"
+title: "MSstats workflow"
 author: "Sam Siljee"
 date: '2022-11-18'
 output: html_document
 ---
 
+Created: 2022/11/18
+Last modified: 2023/01/30
+Written by: Sam Siljee
+
+This is my script to run proteomics data from mass spectrometry through the `MSstats` package for normalisation, quantification, and some QC.
+This is based on the following tutorial:
+
+https://meenachoi.github.io/MayInstitute2019RstatsMS/
+
+Please see the tutorial or the `MSstats` package help for details on how to use the package, for any other assistance or advice you can contact Sam at samsiljee@gmail.com or through his github:
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+# Note that `MSstats` is a Bioconductor package, and will need to be installed through Biocondutor rather than CRAN; BiocManager::install("MSstats")
 library(MSstats)
 library(tidyverse)
+
+# Specify input and output directories. Modify as appropriate
+input_dir <- "~/Coding/MSstats-tutorial/data/OT_vs_IT/"
+output_dir <- "~/Coding/MSstats-tutorial/data/OT_vs_IT/output/"
 ```
 
 # Data import
-This workflow is to import data at the PSM level from Proteome Discoverer 2.4 (PD).
-After running the analysis in PD, select File > Export > To Text (tab delimited)...
-Save the file and place it in the input 
+This workflow is to import data at the PSM table from Proteome Discoverer 2.4 (PD). Although quantification and normalisation is done better in R, you still need to run all samples in the same analysis in order for PD to include precursor abundance in the output table.
+After running the analysis in PD, select File > Export > To Text (tab delimited), and save with an appropriate name. Copy it to the input folder.
+THis chunk reads in the raw PSM table and annotations file, and formats them for use by `MSstats`. 
 
 ```{r data import, echo = FALSE}
-# read main data. Originally I had analysed the samples separately, however it gave an error where the precursor area was not given. This is solved by running the search with LFQ and all raw files at once.
-#raw_IT <- read.csv("~/Coding/MSstats-tutorial/data/OT_vs_IT/Pilot_22091_1ul_50cm_IT_PSMs.txt",
-#                   sep = "\t",
-#                   stringsAsFactors = FALSE)
-#raw_OT <- read.csv("~/Coding/MSstats-tutorial/data/OT_vs_IT/Pilot_22091_1ul_50cm_OT_PSMs.txt",
-#                   sep = "\t",
-#                   stringsAsFactors = FALSE)
-#raw_quan <- read.csv("~/Coding/MSstats-tutorial/data/OT_vs_IT/Quan_Rep_22-091_1ul_50cm_OT_IT_PSMs.txt",
-#                     sep = "\t",
-#                     stringsAsFactors = FALSE)
-raw_col_quan <- read.csv("~/Coding/MSstats-tutorial/data/OT_vs_IT/15_50_quan_PSMs.txt",
-                     sep = "\t",
-                     stringsAsFactors = FALSE)
-# Manually adding the columns required that throw an error in the `PDtoMSstatsFormat` call
-#raw <- raw_quan %>%
-#  mutate(ProteinGroupAccessions = .$Master.Protein.Accessions,
-#         PrecursorArea = .$Precursor.Abundance,
-#         Run = .$Spectrum.File)
-raw <- raw_col_quan %>%
-  mutate(ProteinGroupAccessions = .$Master.Protein.Accessions, PrecursorArea = .$Precursor.Abundance, Run = .$Spectrum.File)
+# Read raw data from PSM table
+raw <- paste(input_dir, "15_50_quan_PSMs.txt", sep = "") %>%
+  read.csv(sep = "\t", stringsAsFactors = FALSE)
 
-# read annotations
-#annot <- read.csv("~/Coding/MSstats-tutorial/data/OT_vs_IT/OT_vs_IT_annotation.csv", sep = ",", stringsAsFactors = TRUE)
-annot_col <- read.csv("~/Coding/MSstats-tutorial/data/OT_vs_IT/col_annotation.csv", sep = ",", stringsAsFactors = TRUE)
+# Manually add (rename) the columns required in the `PDtoMSstatsFormat` call
+raw <- raw %>%
+  mutate(ProteinGroupAccessions = .$Protein.Accessions,
+         PrecursorArea = .$Precursor.Abundance,
+         Run = .$Spectrum.File)
 
-# format for `MSstats`
-# currently this is not working. I suspect there's an issue with the column names of the PSMs export from PD not matching the expected column names in the `PDtoMSstatsFormat` call. See more here; https://groups.google.com/g/msstats/c/FR4-69Z_Neo
+# Read annotations file. This should at least include columns for run, condition, and biological replicate. Every row should be a seperate run
+annot_col <- read.csv("~/Coding/MSstats-tutorial/data/OT_vs_IT/col_annotation.csv",
+                      sep = ",",
+                      stringsAsFactors = TRUE)
+
+# Format for `MSstats`. Please see ?PDtoMSstatsFormat for details on arguments
 input <- PDtoMSstatsFormat(raw, 
                            annotation = annot_col,
                            removeProtein_with1Peptide = FALSE,
-                           removeFewMeasurements = FALSE)
+                           which.quantification = "Precursor.Abundance",
+                           which.proteinid = "Protein.Accessions",
+                           removeFewMeasurements = TRUE)
 
+# Briefly check input
 head(input)
 
-## count the number of proteins
+# Count the number of proteins
 input$ProteinName %>% unique %>% length
 ```
 
 # Data Processing
-including Normalization, decide censored cutoff, protein-level summarization
-Argument deleted, to be compatible with newer version of `MSstats`; 'cutoffCensored = "minFeature"'
-See discussion; https://groups.google.com/g/msstats/c/WLZQz1-QdiA/m/3yjqu4TBAAAJ
+This chunk processes the input data including normalisation, censored cutoff, and protein-level summarization. It saves the result in the output folder in the R data format. Please see `?dataProcess` for details on arguments, normalisation methods etc.
 
 ```{r data processing, echo = FALSE}
+# Process the input
 processed.quant <- dataProcess(input,
                                normalization = 'equalizeMedians',
                                summaryMethod="TMP",
@@ -68,7 +75,8 @@ processed.quant <- dataProcess(input,
                                MBimpute=TRUE,
                                maxQuantileforCensored=0.999)
 
-save(processed.quant, file='data/OT_vs_IT/output/processed.quant.rda')
+# Save results
+save(processed.quant, file = paste(output_dir, "processed.quant.rda", sep = "")
 ```
 
 # Data visualisation
@@ -113,7 +121,7 @@ comparison<-rbind(comparison1,comparison2, comparison3, comparison4, comparison5
                   comparison6, comparison7, comparison8, comparison9, comparison10)
 row.names(comparison)<-c("Condition1-Condition2", "Condition1-Condition3", "Condition1-Condition4", "Condition1-Condition5", "Condition2-Condition3", 
                          "Condition2-Condition4", "Condition2-Condition5", "Condition3-Condition4", "Condition3-Condition5", "Condition4-Condition5")
-colnames(comparison) <- paste("Condition", 1:5, sep = "")
+colnames(comparison) <- c("15", "15", "15", "50", "50")
 
 test.MSstats <- groupComparison(contrast.matrix=comparison, data=processed.quant)
 test.MSstats <- test.MSstats$ComparisonResult
