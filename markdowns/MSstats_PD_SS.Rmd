@@ -82,14 +82,14 @@ save(processed.quant, file = paste(output_dir, "processed.quant.rda", sep = "")
 # Data visualisation
 
 ```{r data visualisation, echo = FALSE}
-#THis produces a boxplot, possibly this is to demonstrate normalisation?
+# This produces a boxplot, of intensity by sample. Used as a basic way to check normalisation
 dataProcessPlots(processed.quant, type="QCplot", 
                  ylimDown=0, 
                  which.Protein = 'allonly',
                  width=7, height=7,  
                  address="data/OT_vs_IT/output/ControlMixture_DDA_ProteomeDiscoverer_")
 
-#Produces individual plots for the different proteins
+# Produces individual plots for the different proteins, each peptide shown in a different colour
 dataProcessPlots(processed.quant, type="Profileplot", 
                  ylimDown=0, 
                  originalPlot = TRUE,
@@ -97,6 +97,7 @@ dataProcessPlots(processed.quant, type="Profileplot",
                  width=7, height=7,  
                  address="data/OT_vs_IT/output/ControlMixture_DDA_ProteomeDiscoverer_")
 
+# Produces a plot for each protein, with the estimated abundance for each protein as based on the modified mixed linear effects model used by `MSstats`
 dataProcessPlots(processed.quant, type="Conditionplot", 
                  ylimDown=0, 
                  width=7, height=7,  
@@ -106,21 +107,9 @@ dataProcessPlots(processed.quant, type="Conditionplot",
 ## Model-based comparison, and adjusted p-value
 
 ```{r model based comparison, echo = FALSE}
-# generate compariosn matrix
-comparison1<-matrix(c(1,-1,0,0,0),nrow=1)
-comparison2<-matrix(c(1,0,-1,0,0),nrow=1)
-comparison3<-matrix(c(1,0,0,-1,0),nrow=1)
-comparison4<-matrix(c(1,0,0,0,-1),nrow=1)
-comparison5<-matrix(c(0,1,-1,0,0),nrow=1)
-comparison6<-matrix(c(0,1,0,-1,0),nrow=1)
-comparison7<-matrix(c(0,1,0,0,-1),nrow=1)
-comparison8<-matrix(c(0,0,1,-1,0),nrow=1)
-comparison9<-matrix(c(0,0,1,0,-1),nrow=1)
-comparison10<-matrix(c(0,0,0,1,-1),nrow=1)
-comparison<-rbind(comparison1,comparison2, comparison3, comparison4, comparison5, 
-                  comparison6, comparison7, comparison8, comparison9, comparison10)
-row.names(comparison)<-c("Condition1-Condition2", "Condition1-Condition3", "Condition1-Condition4", "Condition1-Condition5", "Condition2-Condition3", 
-                         "Condition2-Condition4", "Condition2-Condition5", "Condition3-Condition4", "Condition3-Condition5", "Condition4-Condition5")
+# Set up a comparison, see the `MSstats` example on how to set up a comparison matrix for more than two conditions
+comparison <- matrix(c(1, 1, 1, -1, -1),nrow=1)
+row.names(comparison)<-c("15-50")
 colnames(comparison) <- c("15", "15", "15", "50", "50")
 
 test.MSstats <- groupComparison(contrast.matrix=comparison, data=processed.quant)
