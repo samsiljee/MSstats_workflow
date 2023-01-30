@@ -76,7 +76,7 @@ processed.quant <- dataProcess(input,
                                maxQuantileforCensored=0.999)
 
 # Save results
-save(processed.quant, file = paste(output_dir, "processed.quant.rda", sep = "")
+save(processed.quant, file = paste(output_dir, "processed.quant.rda", sep = ""))
 ```
 
 # Data visualisation
@@ -109,8 +109,8 @@ dataProcessPlots(processed.quant, type="Conditionplot",
 ```{r model based comparison, echo = FALSE}
 # Set up a comparison, see the `MSstats` example on how to set up a comparison matrix for more than two conditions
 comparison <- matrix(c(1, 1, 1, -1, -1),nrow=1)
-row.names(comparison)<-c("15-50")
-colnames(comparison) <- c("15", "15", "15", "50", "50")
+row.names(comparison)<-c("15cm-50cm")
+colnames(comparison) <- c("15cm", "15cm", "15cm", "50cm", "50cm")
 
 test.MSstats <- groupComparison(contrast.matrix=comparison, data=processed.quant)
 test.MSstats <- test.MSstats$ComparisonResult
