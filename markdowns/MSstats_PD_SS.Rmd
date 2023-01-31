@@ -30,7 +30,8 @@ output_dir <- "~/Coding/MSstats-tutorial/data/OT_vs_IT/output/"
 # Data import
 This workflow is to import data at the PSM table from Proteome Discoverer 2.4 (PD). Although quantification and normalisation is done better in R, you still need to run all samples in the same analysis in order for PD to include precursor abundance in the output table.
 After running the analysis in PD, select File > Export > To Text (tab delimited), and save with an appropriate name. Copy it to the input folder.
-THis chunk reads in the raw PSM table and annotations file, and formats them for use by `MSstats`. 
+THis chunk reads in the raw PSM table and annotations file, and formats them for use by `MSstats`.
+The generated input object takes the form of a data.frame with appropriate columns.
 
 ```{r data import, echo = FALSE}
 # Read raw data from PSM table
@@ -60,11 +61,19 @@ input <- PDtoMSstatsFormat(raw,
 head(input)
 
 # Count the number of proteins
-input$ProteinName %>% unique %>% length
+paste("There are", (input$ProteinName %>% unique %>% length), "proteins in this dataset")
+
+# Check the column names in "input"
+colnames(input)
 ```
 
 # Data Processing
-This chunk processes the input data including normalisation, censored cutoff, and protein-level summarization. It saves the result in the output folder in the R data format. Please see `?dataProcess` for details on arguments, normalisation methods etc.
+This chunk processes the input data including normalisation, censored cutoff, cleaning, and protein-level summarization. It saves the result in the output folder in the R data format. Please see `?dataProcess` for details on arguments for normalisation methods etc.
+Note that it gives warnings "Warning: Ran out of iterations and did not converge" I understand that this does not affect the output.
+The output object is structured as a list of three;
+  1. data.frame "FeatureLevelData" of PSM abundances, new abundances, censored etc.
+  2. data.frame "ProteinLevelData" of intensities and some QC stuff, missing features, imputed features, etc.
+  3. character "SummaryMethod", describing the method used (Tukey's median polish)
 
 ```{r data processing, echo = FALSE}
 # Process the input
@@ -80,6 +89,7 @@ save(processed.quant, file = paste(output_dir, "processed.quant.rda", sep = ""))
 ```
 
 # Data visualisation
+These plots are from functions built-in to `MSstats` and are for quality control.
 
 ```{r data visualisation, echo = FALSE}
 # This produces a boxplot, of intensity by sample. Used as a basic way to check normalisation
@@ -104,31 +114,47 @@ dataProcessPlots(processed.quant, type="Conditionplot",
                  address="data/OT_vs_IT/output/ControlMixture_DDA_ProteomeDiscoverer_")
 ```
 
-## Model-based comparison, and adjusted p-value
+# Model-based comparison, and adjusted p-value
+First you will need to set up a comparison matrix describing which samples to compare to the others. This is dependant on the order of your runs.
+A matrix is used with each row as a particular combination of comparisons.
+Alternatively, "pairwise" for contrast.matrix argument.
+I was initially getting an error in the `groupComparison` call, however I believe this is due to the fact that I had uneven numbers of runs. The sum of each row of the comparison matrix should always be 0, with each group totalling to one. This can be fixed by using fractions when indicating multiple samples from the same group. However, I have not quite gotten this to work yet.
+The output file is a list of 3 elements;
+  1. data.frame "ComparisonResult" with log2FC, pvalue, etc. by protein
+  2. data.frame "ModelQC" with abundances etc
+  3. list "FittedModel" with one model for each protein of class 'lmerMod' from the `lme4` package
 
 ```{r model based comparison, echo = FALSE}
-# Set up a comparison, see the `MSstats` example on how to set up a comparison matrix for more than two conditions
-comparison <- matrix(c(1, 1, 1, -1, -1),nrow=1)
-row.names(comparison)<-c("15cm-50cm")
+# Set up the comparison matrix.
+comparison <- matrix(c(1, 0, 0, 0, -1), nrow = 1)
+rownames(comparison) <- c("15cm-50cm")
 colnames(comparison) <- c("15cm", "15cm", "15cm", "50cm", "50cm")
 
-test.MSstats <- groupComparison(contrast.matrix=comparison, data=processed.quant)
-test.MSstats <- test.MSstats$ComparisonResult
+test.MSstats <- groupComparison(contrast.matrix = "pairwise",
+                                data = processed.quant)
+# Extracting only the comparison results
+test.results <- test.MSstats$ComparisonResult
 
 # save the results
-save(test.MSstats, file='data/Proteome_Discoverer_example/output/test.MSstats.rda')
-write.csv(test.MSstats, file='data/Proteome_Discoverer_example/output/ControlMixture_DDA_ProteomeDiscoverer_testResult_byMSstats.csv')
+save(test.results, file = paste(output_dir, "test.results.rda", sep = ""))
+write.csv(test.results, file = paste(output_dir, "MSstatsResults.csv", sep = ""))
 ```
 
 # Comparison plots
 
 ```{r comparison plots, echo = FALSE}
-groupComparisonPlots(data=test.MSstats, type="VolcanoPlot",
-                     width=6, height=6,
-                     address="data/Proteome_Discoverer_example/output/ControlMixture_DDA_ProteomeDiscoverer_")
+#Basic volcano plot of results
+groupComparisonPlots(data = test.results,
+                     type = "VolcanoPlot",
+                     width = 6,
+                     height = 6,
+                     address = paste(output_dir, "MSstats_"))
 
-groupComparisonPlots(data=test.MSstats, type="ComparisonPlot",
-                     width=6, height=6,
-                     address="data/Proteome_Discoverer_example/output/ControlMixture_DDA_ProteomeDiscoverer_")
+#Individual plots of log2FC with error bars for each protein
+groupComparisonPlots(data = test.results,
+                     type = "ComparisonPlot",
+                     width = 6,
+                     height = 6,
+                     address = paste(output_dir, "MSstats_"))
 
 ```
