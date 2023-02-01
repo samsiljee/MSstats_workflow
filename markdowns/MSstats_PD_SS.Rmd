@@ -193,10 +193,12 @@ volcano <- MSstats.results %>%
   ggplot(aes(x = log2FC, y = -log10(adj.pvalue), col = Dif)) +
   geom_vline(xintercept = c(-1, 1), linetype = "dashed", colour = "black") +
   geom_hline(yintercept = -log10(0.05), linetype = "dashed", colour = "red") +
-  geom_point(alpha = 0.25) +
+  geom_point(alpha = 0.25, show.legend = FALSE) +
   scale_color_manual(values = colours) +
   xlim(-15, 15) +
-  ylim(0, 10)
+  ylim(0, 10) +
+  ylab("-Log10(adjusted p-value)") +
+  xlab("Log2 fold change")
 
 # Save plot
 ggsave(filename = paste(output_dir, "ggvolcano.png", sep = ""),
