@@ -151,9 +151,15 @@ paste("There are", length(outliers), "outliers where the adjusted P value is zer
 # Remove outliers
 MSstats.results <- MSstats.results[-outliers,]
 
+# Remove rows with NAs for p value/adjusted p value
+MSstats.results <- MSstats.results[!is.na(MSstats.results$adj.pvalue),]
+
 # Add column for up/downregulated or non-significant
-MSstats.results$Colour <- ifelse(MSstats.results$log2FC > 1 & MSstats.results$adj.pvalue < 0.05, "Upregulated",
-ifelse(MSstats.results$log2FC < 1 & MSstats.results$adj.pvalue < 0.05), "Downregulated", "Not significant")
+MSstats.results$Dif <- ifelse(MSstats.results$log2FC > 1 & MSstats.results$adj.pvalue < 0.05,
+                                 "Upregulated",
+                                 ifelse(MSstats.results$log2FC < -1 & MSstats.results$adj.pvalue < 0.05,
+                                        "Downregulated",
+                                        "Not significant"))
 
 # save the results
 save(MSstats.results, file = paste(output_dir, "MSstats.results.rda", sep = ""))
@@ -178,12 +184,25 @@ EnhancedVolcano(MSstats.results,
                 FCcutoff = 1,
                 pCutoff = 0.05)
 
+# Define colours for use in ggplot
+colours <- c("red", "blue", "black") 
+names(colours) <- c("Upregulated", "Downregulated", "Not significant")
+
 # Volcano plot using ggplot
-ggplot(MSstats.results, aes(x = log2FC, y = -log10(adj.pvalue))) +
+volcano <- MSstats.results %>%
+  ggplot(aes(x = log2FC, y = -log10(adj.pvalue), col = Dif)) +
   geom_vline(xintercept = c(-1, 1), linetype = "dashed", colour = "black") +
   geom_hline(yintercept = -log10(0.05), linetype = "dashed", colour = "red") +
-  geom_point() +
-  theme_minimal()
+  geom_point(alpha = 0.25) +
+  scale_color_manual(values = colours) +
+  xlim(-15, 15) +
+  ylim(0, 10)
+
+# Save plot
+ggsave(filename = paste(output_dir, "ggvolcano.png", sep = ""),
+       plot = volcano,
+       width = 6,
+       height = 6)
 
 #Individual plots of log2FC with error bars for each protein
 groupComparisonPlots(data = MSstats.results,
@@ -191,5 +210,4 @@ groupComparisonPlots(data = MSstats.results,
                      width = 6,
                      height = 6,
                      address = paste(output_dir, "MSstats_"))
-
 ```
