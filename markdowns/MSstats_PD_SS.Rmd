@@ -21,6 +21,7 @@ knitr::opts_chunk$set(echo = TRUE)
 # Note that `MSstats` is a Bioconductor package, and will need to be installed through Biocondutor rather than CRAN; BiocManager::install("MSstats")
 library(MSstats)
 library(tidyverse)
+library(EnhancedVolcano)
 
 # Specify input and output directories. Modify as appropriate
 input_dir <- "~/Coding/MSstats-tutorial/data/OT_vs_IT/"
@@ -35,8 +36,9 @@ The generated input object takes the form of a data.frame with appropriate colum
 
 ```{r data import, echo = FALSE}
 # Read raw data from PSM table
-raw <- paste(input_dir, "15_50_quan_PSMs.txt", sep = "") %>%
-  read.csv(sep = "\t", stringsAsFactors = FALSE)
+raw <- read.csv(paste(input_dir, "15_50_quan_PSMs.txt", sep = ""),
+                sep = "\t",
+                stringsAsFactors = FALSE)
 
 # Manually add (rename) the columns required in the `PDtoMSstatsFormat` call
 raw <- raw %>%
@@ -45,7 +47,7 @@ raw <- raw %>%
          Run = .$Spectrum.File)
 
 # Read annotations file. This should at least include columns for run, condition, and biological replicate. Every row should be a seperate run
-annot_col <- read.csv("~/Coding/MSstats-tutorial/data/OT_vs_IT/col_annotation.csv",
+annot_col <- read.csv(paste(input_dir, "col_annotation.csv", sep = ""),
                       sep = ",",
                       stringsAsFactors = TRUE)
 
@@ -77,15 +79,15 @@ The output object is structured as a list of three;
 
 ```{r data processing, echo = FALSE}
 # Process the input
-processed.quant <- dataProcess(input,
-                               normalization = 'equalizeMedians',
-                               summaryMethod="TMP",
-                               censoredInt="NA",
-                               MBimpute=TRUE,
-                               maxQuantileforCensored=0.999)
+processed <- dataProcess(input,
+                         normalization = 'equalizeMedians',
+                         summaryMethod = "TMP",
+                         censoredInt = "NA",
+                         MBimpute = TRUE,
+                         maxQuantileforCensored = 0.999)
 
 # Save results
-save(processed.quant, file = paste(output_dir, "processed.quant.rda", sep = ""))
+save(processed, file = paste(output_dir, "processed.rda", sep = ""))
 ```
 
 # Data visualisation
@@ -93,25 +95,31 @@ These plots are from functions built-in to `MSstats` and are for quality control
 
 ```{r data visualisation, echo = FALSE}
 # This produces a boxplot, of intensity by sample. Used as a basic way to check normalisation
-dataProcessPlots(processed.quant, type="QCplot", 
-                 ylimDown=0, 
-                 which.Protein = 'allonly',
-                 width=7, height=7,  
-                 address="data/OT_vs_IT/output/ControlMixture_DDA_ProteomeDiscoverer_")
+dataProcessPlots(processed,
+                 type = "QCplot", 
+                 ylimDown = 0, 
+                 which.Protein = "allonly",
+                 width = 7,
+                 height = 7,  
+                 address = paste(output_dir, "MSstats_", sep = ""))
 
 # Produces individual plots for the different proteins, each peptide shown in a different colour
-dataProcessPlots(processed.quant, type="Profileplot", 
-                 ylimDown=0, 
+dataProcessPlots(processed,
+                 type = "Profileplot", 
+                 ylimDown = 0, 
                  originalPlot = TRUE,
                  summaryPlot = TRUE,
-                 width=7, height=7,  
-                 address="data/OT_vs_IT/output/ControlMixture_DDA_ProteomeDiscoverer_")
+                 width = 7,
+                 height = 7,  
+                 address = paste(output_dir, "MSstats_", sep = ""))
 
 # Produces a plot for each protein, with the estimated abundance for each protein as based on the modified mixed linear effects model used by `MSstats`
-dataProcessPlots(processed.quant, type="Conditionplot", 
-                 ylimDown=0, 
-                 width=7, height=7,  
-                 address="data/OT_vs_IT/output/ControlMixture_DDA_ProteomeDiscoverer_")
+dataProcessPlots(processed,
+                 type = "Conditionplot", 
+                 ylimDown = 0, 
+                 width = 7,
+                 height = 7,  
+                 address = paste(output_dir, "MSstats_", sep = ""))
 ```
 
 # Model-based comparison, and adjusted p-value
@@ -130,28 +138,55 @@ comparison <- matrix(c(1, 0, 0, 0, -1), nrow = 1)
 rownames(comparison) <- c("15cm-50cm")
 colnames(comparison) <- c("15cm", "15cm", "15cm", "50cm", "50cm")
 
+# Run the test
 test.MSstats <- groupComparison(contrast.matrix = "pairwise",
-                                data = processed.quant)
-# Extracting only the comparison results
-test.results <- test.MSstats$ComparisonResult
+                                data = processed)
+# Extracting the comparison results
+MSstats.results <- test.MSstats$ComparisonResult
+
+# Checking for outliers, results in which there is an infinite fold-change
+outliers <- which(MSstats.results$log2FC == Inf)
+paste("There are", length(outliers), "outliers where the adjusted P value is zero, and fold-change is infinite", sep = " ")
+
+# Remove outliers
+MSstats.results <- MSstats.results[-outliers,]
+
+# Add column for up/downregulated or non-significant
+MSstats.results$Colour <- ifelse(MSstats.results$log2FC > 1 & MSstats.results$adj.pvalue < 0.05, "Upregulated",
+ifelse(MSstats.results$log2FC < 1 & MSstats.results$adj.pvalue < 0.05), "Downregulated", "Not significant")
 
 # save the results
-save(test.results, file = paste(output_dir, "test.results.rda", sep = ""))
-write.csv(test.results, file = paste(output_dir, "MSstatsResults.csv", sep = ""))
+save(MSstats.results, file = paste(output_dir, "MSstats.results.rda", sep = ""))
+write.csv(MSstats.results, file = paste(output_dir, "MSstatsResults.csv", sep = ""))
 ```
 
 # Comparison plots
 
 ```{r comparison plots, echo = FALSE}
-#Basic volcano plot of results
-groupComparisonPlots(data = test.results,
+#Basic volcano plot of results using `MSstats` function
+groupComparisonPlots(data = MSstats.results,
                      type = "VolcanoPlot",
                      width = 6,
                      height = 6,
                      address = paste(output_dir, "MSstats_"))
 
+# Volcano plot using old code
+EnhancedVolcano(MSstats.results,
+                lab = rownames(MSstats.results),
+                x = "log2FC",
+                y = "adj.pvalue",
+                FCcutoff = 1,
+                pCutoff = 0.05)
+
+# Volcano plot using ggplot
+ggplot(MSstats.results, aes(x = log2FC, y = -log10(adj.pvalue))) +
+  geom_vline(xintercept = c(-1, 1), linetype = "dashed", colour = "black") +
+  geom_hline(yintercept = -log10(0.05), linetype = "dashed", colour = "red") +
+  geom_point() +
+  theme_minimal()
+
 #Individual plots of log2FC with error bars for each protein
-groupComparisonPlots(data = test.results,
+groupComparisonPlots(data = MSstats.results,
                      type = "ComparisonPlot",
                      width = 6,
                      height = 6,

@@ -4,6 +4,7 @@ data_to_ignore/*
 data/OT_vs_IT/output/*.pdf
 data/OT_vs_IT/output/*.rda
 data/OT_vs_IT/output/*.csv
+markdowns/MSstats_PD_SS.html
 data/OT_vs_IT/output/processed.quant.rda
 # History files
 .Rhistory
