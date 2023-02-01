@@ -37,3 +37,7 @@ I've solved these problems by running my samples simultaneously in Proteome Disc
 https://groups.google.com/g/msstats/c/fHa3MqRtMss/m/PCLGjy0SCAAJ
 
 These problems solved, I'm not sure how, but likely by updating package dependancies.
+
+# License
+
+Feel free to use this code as you wish under the MIT license, however an anknowledgement would be nice. Thanks!
