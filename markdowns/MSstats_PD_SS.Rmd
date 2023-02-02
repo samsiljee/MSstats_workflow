@@ -75,7 +75,8 @@ processed <- dataProcess(input,
                          summaryMethod = "TMP",
                          censoredInt = "NA",
                          MBimpute = TRUE,
-                         maxQuantileforCensored = 0.999)
+                         maxQuantileforCensored = 0.999,
+                         verbose = TRUE)
 
 # Save results
 save(processed, file = paste(output_dir, "processed.rda", sep = ""))
