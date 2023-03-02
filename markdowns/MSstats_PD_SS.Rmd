@@ -5,7 +5,10 @@ date: '2022-11-18'
 output: html_document
 ---
 
-Created: 2022/11/18 Last modified: 2023/01/30 Written by: Sam Siljee
+Created: 2022/11/18 
+Last modified: 2023/03/02 
+Written by: Sam Siljee
+copyright (c) - 2022 Sam Siljee
 
 This is my script to run proteomics data from mass spectrometry through the `MSstats` package for normalisation, quantification, and some QC. This is based on the following tutorial:
 
@@ -117,16 +120,16 @@ dataProcessPlots(processed,
 
 # Model-based comparison, and adjusted p-value
 
-First you will need to set up a comparison matrix describing which samples to compare to the others. This is dependant on the order of your runs. A matrix is used with each row as a particular combination of comparisons. Alternatively, "pairwise" for contrast.matrix argument. I was initially getting an error in the `groupComparison` call, however I believe this is due to the fact that I had uneven numbers of runs. The sum of each row of the comparison matrix should always be 0, with each group totalling to one. This can be fixed by using fractions when indicating multiple samples from the same group. However, I have not quite gotten this to work yet. The output file is a list of 3 elements; 1. data.frame "ComparisonResult" with log2FC, pvalue, etc. by protein 2. data.frame "ModelQC" with abundances etc 3. list "FittedModel" with one model for each protein of class 'lmerMod' from the `lme4` package
+First you will need to set up a comparison matrix describing which samples to compare to the others. This is dependant on the order of your runs. A matrix is used with each row as a particular combination of comparisons. Noted in the tutorial document: "We define our contrast matrix by adding a column for every condition, in alphabetical order". Alternatively, use "pairwise" for contrast.matrix argument. I was initially getting an error in the `groupComparison` call, however I believe this is due to the fact that I had uneven numbers of runs. The sum of each row of the comparison matrix should always be 0, with each group totalling to one. This can be fixed by using fractions when indicating multiple samples from the same group. However, I have not quite gotten this to work yet. The output file is a list of 3 elements; 1. data.frame "ComparisonResult" with log2FC, pvalue, etc. by protein 2. data.frame "ModelQC" with abundances etc 3. list "FittedModel" with one model for each protein of class 'lmerMod' from the `lme4` package
 
 ```{r model based comparison, echo = FALSE}
 # Set up the comparison matrix.
-comparison <- matrix(c(1, 0, 0, 0, -1), nrow = 1)
+comparison <- matrix(c(1, -1), nrow = 1)
 rownames(comparison) <- c("15cm-50cm")
-colnames(comparison) <- c("15cm", "15cm", "15cm", "50cm", "50cm")
+colnames(comparison) <- c("15cm", "50cm")
 
 # Run the test
-test.MSstats <- groupComparison(contrast.matrix = "pairwise",
+test.MSstats <- groupComparison(contrast.matrix = comparison,
                                 data = processed)
 # Extracting the comparison results
 MSstats.results <- test.MSstats$ComparisonResult
@@ -200,3 +203,10 @@ groupComparisonPlots(data = MSstats.results,
                      height = 6,
                      address = paste(output_dir, "MSstats_"))
 ```
+
+## Issues
+- There is a series of warnings in the data-import and tidying step; "Warning in aggregator(Intensity, na.rm = TRUE) :
+  no non-missing arguments to max; returning -Inf", which I should investigate further.
+
+## Further notes
+- I believe I have fixed the issue I was running into with the comparison matrix; columns should be conditions rather than samples.
