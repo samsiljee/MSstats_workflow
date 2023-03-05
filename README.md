@@ -24,9 +24,11 @@ It might be easiest to do basic QC using the artMS package;
 https://www.bioconductor.org/packages/devel/bioc/vignettes/artMS/inst/doc/artMS_vignette.html#1_OVERVIEW
 
 ## Current issues
-- I'm having trouble running the comparison matrix, and am only able to do the "pairwise" analysis. This may well be appropriate for my study however.
 
 - Following the comparison testing, there are some issues. Some proteins have p-values and adjusted -pavlues of exactly 0, with infinite fold change. I have removed these, however I'm uncertain if this is the appropriate thing to do. I should discuss this with Lisa Woods. There are also some proteins which give a p-value/adjusted p-value of NA, and I've also removed these.
+
+- There is a series of warnings in the data-import and tidying step; "Warning in aggregator(Intensity, na.rm = TRUE) :
+  no non-missing arguments to max; returning -Inf", which I should investigate further.
 
 ## Solved issues
 - Currently I'm struggling to get the function `PDtoMSstatsFormat` to work. Initially I was missing the columns for "ProteinGroupAccessions" and "PrecursorArea", however I renamed the column"Master.Protein.Accessions" from the original dataset. "PrecursorArea" can be renamed from the "Precursor.Area" or "Precursor.Abundance" column, but note that these are only produced when running a quantified search in Proteome Discoverer.
@@ -37,6 +39,8 @@ I've solved these problems by running my samples simultaneously in Proteome Disc
 https://groups.google.com/g/msstats/c/fHa3MqRtMss/m/PCLGjy0SCAAJ
 
 These problems solved, I'm not sure how, but likely by updating package dependancies.
+
+- I'm having trouble running the comparison matrix, and am only able to do the "pairwise" analysis. This may well be appropriate for my study however. This I solved by reading the `MSstats` tutorial, the contrast matrix is supposed to have columns not for every sample, but for every condition. These also need to be listed in alphabetical order.
 
 # License
 
