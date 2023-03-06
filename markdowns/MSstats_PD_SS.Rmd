@@ -16,16 +16,27 @@ This is my script to run proteomics data from mass spectrometry through the `MSs
 
 Please see the tutorial or the `MSstats` package help for details on how to use the package, for any other assistance or advice you can contact Sam at [samsiljee\@gmail.com](mailto:samsiljee@gmail.com){.email} or through his github:
 
+# User input
+
+Welcome to the script! Here are the variables that you can change to specifically fit your project. Note that this script is currently set up for output from Proteome Discoverer (v. 2.4), however this can be easily adapted to MaxQuant, Skyline, or most other database search engines.
+
+```{r user variables, include = TRUE}
+# Specify input and output directories, modify as appropriate
+input_dir <- "~/Coding/MSstats-tutorial/data/OT_vs_IT/"
+output_dir <- "~/Coding/MSstats-tutorial/data/OT_vs_IT/output/"
+
+# Specify the names of your raw data and annotations csv, modify as appropriate
+raw_file <- "15_50_quan_PSMs.txt"
+annotations_file <- "col_annotation.csv"
+```
+
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 # Note that `MSstats` is a Bioconductor package, and will need to be installed through Biocondutor rather than CRAN; BiocManager::install("MSstats")
 library(MSstats)
 library(tidyverse)
 library(EnhancedVolcano)
-
-# Specify input and output directories. Modify as appropriate
-input_dir <- "~/Coding/MSstats-tutorial/data/OT_vs_IT/"
-output_dir <- "~/Coding/MSstats-tutorial/data/OT_vs_IT/output/"
 ```
 
 # Data import
@@ -34,7 +45,7 @@ This workflow is to import data at the PSM table from Proteome Discoverer 2.4 (P
 
 ```{r data import, echo = FALSE}
 # Read raw data from PSM table
-raw <- read.csv(paste(input_dir, "15_50_quan_PSMs.txt", sep = ""),
+raw <- read.csv(paste(input_dir, raw_file, sep = ""),
                 sep = "\t",
                 stringsAsFactors = FALSE)
 
@@ -45,7 +56,7 @@ raw <- raw %>%
          Run = .$Spectrum.File)
 
 # Read annotations file. This should at least include columns for run, condition, and biological replicate. Every row should be a seperate run
-annot_col <- read.csv(paste(input_dir, "col_annotation.csv", sep = ""),
+annot_col <- read.csv(paste(input_dir, annotations_file, sep = ""),
                       sep = ",",
                       stringsAsFactors = TRUE)
 
@@ -203,10 +214,3 @@ groupComparisonPlots(data = MSstats.results,
                      height = 6,
                      address = paste(output_dir, "MSstats_"))
 ```
-
-## Issues
-- There is a series of warnings in the data-import and tidying step; "Warning in aggregator(Intensity, na.rm = TRUE) :
-  no non-missing arguments to max; returning -Inf", which I should investigate further.
-
-## Further notes
-- I believe I have fixed the issue I was running into with the comparison matrix; columns should be conditions rather than samples.

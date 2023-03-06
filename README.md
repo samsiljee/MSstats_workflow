@@ -29,6 +29,8 @@ https://www.bioconductor.org/packages/devel/bioc/vignettes/artMS/inst/doc/artMS_
 
 - There is a series of warnings in the data-import and tidying step; "Warning in aggregator(Intensity, na.rm = TRUE) :
   no non-missing arguments to max; returning -Inf", which I should investigate further.
+  
+- I would also like to add protein names in the format of gene names to replace the uniprot accession numbers.
 
 ## Solved issues
 - Currently I'm struggling to get the function `PDtoMSstatsFormat` to work. Initially I was missing the columns for "ProteinGroupAccessions" and "PrecursorArea", however I renamed the column"Master.Protein.Accessions" from the original dataset. "PrecursorArea" can be renamed from the "Precursor.Area" or "Precursor.Abundance" column, but note that these are only produced when running a quantified search in Proteome Discoverer.
