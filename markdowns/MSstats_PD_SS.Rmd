@@ -10,6 +10,15 @@ Last modified: 2023/03/02
 Written by: Sam Siljee
 copyright (c) - 2022 Sam Siljee
 
+# Loading packages
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+# Note that `MSstats` is a Bioconductor package, and will need to be installed through Biocondutor rather than CRAN; BiocManager::install("MSstats")
+library(MSstats)
+library(tidyverse)
+library(EnhancedVolcano)
+```
+
 This is my script to run proteomics data from mass spectrometry through the `MSstats` package for normalisation, quantification, and some QC. This is based on the following tutorial:
 
 <https://meenachoi.github.io/MayInstitute2019RstatsMS/>
@@ -18,25 +27,16 @@ Please see the tutorial or the `MSstats` package help for details on how to use 
 
 # User input
 
-Welcome to the script! Here are the variables that you can change to specifically fit your project. Note that this script is currently set up for output from Proteome Discoverer (v. 2.4), however this can be easily adapted to MaxQuant, Skyline, or most other database search engines.
+Welcome to the script! Here are the variables that you can change to specifically fit your project. Note that this script is currently set up for output from Proteome Discoverer (v. 2.4), however this can be easily adapted to MaxQuant, Skyline, or most other database search engines. Please modify the below variables as appropriate.
 
 ```{r user variables, include = TRUE}
-# Specify input and output directories, modify as appropriate
-input_dir <- "~/Coding/MSstats-tutorial/data/OT_vs_IT/"
-output_dir <- "~/Coding/MSstats-tutorial/data/OT_vs_IT/output/"
+# Specify input and output directories
+input_dir <- "~/Documents/Coding/MSstats-tutorial/input/"
+output_dir <- "~/Documents/Coding/MSstats-tutorial/output/"
 
-# Specify the names of your raw data and annotations csv, modify as appropriate
-raw_file <- "15_50_quan_PSMs.txt"
-annotations_file <- "col_annotation.csv"
-```
-
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-# Note that `MSstats` is a Bioconductor package, and will need to be installed through Biocondutor rather than CRAN; BiocManager::install("MSstats")
-library(MSstats)
-library(tidyverse)
-library(EnhancedVolcano)
+# Specify the names of your raw data and annotations csv
+raw_file <- "sam_season_PSMs.txt"
+annotations_file <- "sam_season_annotation.csv"
 ```
 
 # Data import
@@ -51,7 +51,7 @@ raw <- read.csv(paste(input_dir, raw_file, sep = ""),
 
 # Manually add (rename) the columns required in the `PDtoMSstatsFormat` call
 raw <- raw %>%
-  mutate(ProteinGroupAccessions = .$Protein.Accessions,
+  mutate(ProteinGroupAccessions = .$Master.Protein.Accessions,
          PrecursorArea = .$Precursor.Abundance,
          Run = .$Spectrum.File)
 
@@ -65,8 +65,7 @@ input <- PDtoMSstatsFormat(raw,
                            annotation = annot_col,
                            removeProtein_with1Peptide = FALSE,
                            which.quantification = "Precursor.Abundance",
-                           which.proteinid = "Protein.Accessions",
-                           removeFewMeasurements = TRUE)
+                           removeFewMeasurements = FALSE)
 
 # Briefly check input
 head(input)
@@ -134,10 +133,15 @@ dataProcessPlots(processed,
 First you will need to set up a comparison matrix describing which samples to compare to the others. This is dependant on the order of your runs. A matrix is used with each row as a particular combination of comparisons. Noted in the tutorial document: "We define our contrast matrix by adding a column for every condition, in alphabetical order". Alternatively, use "pairwise" for contrast.matrix argument. I was initially getting an error in the `groupComparison` call, however I believe this is due to the fact that I had uneven numbers of runs. The sum of each row of the comparison matrix should always be 0, with each group totalling to one. This can be fixed by using fractions when indicating multiple samples from the same group. However, I have not quite gotten this to work yet. The output file is a list of 3 elements; 1. data.frame "ComparisonResult" with log2FC, pvalue, etc. by protein 2. data.frame "ModelQC" with abundances etc 3. list "FittedModel" with one model for each protein of class 'lmerMod' from the `lme4` package
 
 ```{r model based comparison, echo = FALSE}
-# Set up the comparison matrix.
-comparison <- matrix(c(1, -1), nrow = 1)
-rownames(comparison) <- c("15cm-50cm")
-colnames(comparison) <- c("15cm", "50cm")
+# Set up the comparison matrix
+comparison <- matrix(ncol = (length(levels(annot_col$Condition))), nrow = 3)
+colnames(comparison) <- levels(annot_col$Condition)
+
+# Each row in the matrix is a comparison, make as many as wanted
+rownames(comparison) <- c("HEK vs SeasonB", "Season lysC vs Trypsin", "Season ZT vs SC")
+comparison[1,] <- c(1, -1, -1, -1, -1)
+comparison[2,] <- c(0, 1, 1, -1, -1)
+comparison[3,] <- c(0, -1, 1, -1, 1)
 
 # Run the test
 test.MSstats <- groupComparison(contrast.matrix = comparison,
@@ -146,7 +150,7 @@ test.MSstats <- groupComparison(contrast.matrix = comparison,
 MSstats.results <- test.MSstats$ComparisonResult
 
 # Checking for outliers, results in which there is an infinite fold-change
-outliers <- which(MSstats.results$log2FC == Inf)
+outliers <- which(MSstats.results$log2FC == Inf | MSstats.results$log2FC == -Inf)
 paste("There are", length(outliers), "outliers where the adjusted P value is zero, and fold-change is infinite", sep = " ")
 
 # Remove outliers
@@ -170,6 +174,19 @@ write.csv(MSstats.results, file = paste(output_dir, "MSstatsResults.csv", sep = 
 # Comparison plots
 
 ```{r comparison plots, echo = FALSE}
+
+
+#Individual plots of log2FC with error bars for each protein
+groupComparisonPlots(data = MSstats.results,
+                     type = "ComparisonPlot",
+                     width = 6,
+                     height = 6,
+                     address = paste(output_dir, "MSstats_"))
+```
+
+# Volcano plots
+
+```{r volcano plots}
 #Basic volcano plot of results using `MSstats` function
 groupComparisonPlots(data = MSstats.results,
                      type = "VolcanoPlot",
@@ -189,28 +206,28 @@ EnhancedVolcano(MSstats.results,
 colours <- c("red", "blue", "black") 
 names(colours) <- c("Upregulated", "Downregulated", "Not significant")
 
+# Start for loop to generate plots by comparison
+for(comp in unique(MSstats.results$Label)){
+
 # Volcano plot using ggplot
-volcano <- MSstats.results %>%
-  ggplot(aes(x = log2FC, y = -log10(adj.pvalue), col = Dif)) +
-  geom_vline(xintercept = c(-1, 1), linetype = "dashed", colour = "black") +
-  geom_hline(yintercept = -log10(0.05), linetype = "dashed", colour = "red") +
-  geom_point(alpha = 0.25, show.legend = FALSE) +
-  scale_color_manual(values = colours) +
-  xlim(-15, 15) +
-  ylim(0, 10) +
-  ylab("-Log10(adjusted p-value)") +
-  xlab("Log2 fold change")
+  volcano <- MSstats.results %>%
+    filter(Label == comp) %>%
+    ggplot(aes(x = log2FC, y = -log10(adj.pvalue), col = Dif)) +
+    geom_vline(xintercept = c(-1, 1), linetype = "dashed", colour = "black") +
+    geom_hline(yintercept = -log10(0.05), linetype = "dashed", colour = "red") +
+    geom_point(alpha = 0.25, show.legend = FALSE) +
+    scale_color_manual(values = colours) +
+    xlim(-15, 15) +
+    ylim(0, 10) +
+    ylab("-Log10(adjusted p-value)") +
+    xlab("Log2 fold change") +
+    ggtitle(paste("Volcano plot of", comp))
 
 # Save plot
-ggsave(filename = paste(output_dir, "ggvolcano.png", sep = ""),
-       plot = volcano,
-       width = 6,
-       height = 6)
-
-#Individual plots of log2FC with error bars for each protein
-groupComparisonPlots(data = MSstats.results,
-                     type = "ComparisonPlot",
-                     width = 6,
-                     height = 6,
-                     address = paste(output_dir, "MSstats_"))
+  ggsave(filename = paste(output_dir, comp, "_ggvolcano.png", sep = ""),
+         plot = volcano,
+         width = 6,
+         height = 6)
+}
 ```
+
