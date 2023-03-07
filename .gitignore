@@ -1,16 +1,6 @@
-# Data files too big for github
-data_to_ignore/*
-# output
+# All output
 output/*
-# input
-input/*
-# Selected output
-data/OT_vs_IT/output/*.pdf
-data/OT_vs_IT/output/*.rda
-data/OT_vs_IT/output/*.csv
-data/OT_vs_IT/output/*.png
-markdowns/MSstats_PD_SS.html
-data/OT_vs_IT/output/processed.quant.rda
+
 # History files
 .Rhistory
 .Rapp.history
