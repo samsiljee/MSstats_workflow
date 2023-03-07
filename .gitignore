@@ -1,6 +1,9 @@
 # All output
 output/*
 
+# All input
+input/*
+
 # History files
 .Rhistory
 .Rapp.history
