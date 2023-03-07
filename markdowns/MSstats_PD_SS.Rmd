@@ -31,8 +31,8 @@ Welcome to the script! Here are the variables that you can change to specificall
 
 ```{r user variables, include = TRUE}
 # Specify input and output directories
-input_dir <- "~/Documents/Coding/MSstats-tutorial/input/"
-output_dir <- "~/Documents/Coding/MSstats-tutorial/output/"
+input_dir <- "~/Documents/Coding/MSstats_workflow/input/"
+output_dir <- "~/Documents/Coding/MSstats_workflow/output/"
 
 # Specify the names of your raw data and annotations csv
 raw_file <- "sam_season_PSMs.txt"
@@ -43,7 +43,7 @@ annotations_file <- "sam_season_annotation.csv"
 
 This workflow is to import data at the PSM table from Proteome Discoverer 2.4 (PD). Although quantification and normalisation is done better in R, you still need to run all samples in the same analysis in order for PD to include precursor abundance in the output table. After running the analysis in PD, select File \> Export \> To Text (tab delimited), and save with an appropriate name. Copy it to the input folder. THis chunk reads in the raw PSM table and annotations file, and formats them for use by `MSstats`. The generated input object takes the form of a data.frame with appropriate columns.
 
-```{r data import, echo = FALSE}
+```{r data import}
 # Read raw data from PSM table
 raw <- read.csv(paste(input_dir, raw_file, sep = ""),
                 sep = "\t",
