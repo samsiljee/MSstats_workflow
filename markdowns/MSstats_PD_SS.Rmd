@@ -45,7 +45,7 @@ This workflow is to import data at the PSM table from Proteome Discoverer 2.4 (P
 
 ```{r data import}
 # Read raw data from PSM table
-raw <- read.csv(paste(input_dir, raw_file, sep = ""),
+raw <- read.csv(paste0(input_dir, raw_file),
                 sep = "\t",
                 stringsAsFactors = FALSE)
 
@@ -56,7 +56,7 @@ raw <- raw %>%
          Run = .$Spectrum.File)
 
 # Read annotations file. This should at least include columns for run, condition, and biological replicate. Every row should be a seperate run
-annot_col <- read.csv(paste(input_dir, annotations_file, sep = ""),
+annot_col <- read.csv(paste0(input_dir, annotations_file),
                       sep = ",",
                       stringsAsFactors = TRUE)
 
