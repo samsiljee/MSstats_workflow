@@ -1,5 +1,9 @@
 # Data files too big for github
 data_to_ignore/*
+# output
+output/*
+# input
+input/*
 # Selected output
 data/OT_vs_IT/output/*.pdf
 data/OT_vs_IT/output/*.rda
