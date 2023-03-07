@@ -1,4 +1,4 @@
-# MSstats-tutorial
+# MSstats workflow
 MSstats tutorial from the May Institute, 2020
 
 Based on the following video;
