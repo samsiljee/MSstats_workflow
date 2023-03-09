@@ -35,11 +35,9 @@ if(getwd() == "C:/Users/Sam/Documents/Coding/MSstats_workflow/markdowns"){
   input_dir <- "~/Documents/Coding/MSstats_workflow/input/"
   output_dir <- "~/Documents/Coding/MSstats_workflow/output/"
 }else{
-  return("Not Sam's computer")
+  input_dir <- "~/Coding/MSstats_workflow/input/"
+  output_dir <- "~/Coding/MSstats_workflow/output/"  
 }
-
-input_dir <- "~/Documents/Coding/MSstats_workflow/input/"
-output_dir <- "~/Documents/Coding/MSstats_workflow/output/"
 
 # Specify the names of your raw data and annotations csv
 raw_file <- "sam_season_PSMs.txt"
