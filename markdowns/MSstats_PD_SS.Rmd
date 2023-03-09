@@ -31,8 +31,15 @@ Welcome to the script! Here are the variables that you can change to specificall
 
 ```{r user variables, include = TRUE}
 # Specify input and output directories
-input_dir <- "input/"
-output_dir <- "output/"
+if(getwd() == "C:/Users/Sam/Documents/Coding/MSstats_workflow/markdowns"){
+  input_dir <- "~/Documents/Coding/MSstats_workflow/input/"
+  output_dir <- "~/Documents/Coding/MSstats_workflow/output/"
+}else{
+  return("Not Sam's computer")
+}
+
+input_dir <- "~/Documents/Coding/MSstats_workflow/input/"
+output_dir <- "~/Documents/Coding/MSstats_workflow/output/"
 
 # Specify the names of your raw data and annotations csv
 raw_file <- "sam_season_PSMs.txt"
