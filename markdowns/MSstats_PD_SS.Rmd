@@ -30,16 +30,14 @@ Please see the tutorial or the `MSstats` package help for details on how to use 
 Welcome to the script! Here are the variables that you can change to specifically fit your project. Note that this script is currently set up for output from Proteome Discoverer (v. 2.4), however this can be easily adapted to MaxQuant, Skyline, or most other database search engines. Please modify the below variables as appropriate.
 
 ```{r user variables, include = TRUE}
-# Specify input and output directories
+# Specify input and output directories. one layout for my personal computer, another for GMRI and VUW
 if(getwd() == "C:/Users/Sam/Documents/Coding/MSstats_workflow/markdowns"){
   input_dir <- "~/Documents/Coding/MSstats_workflow/input/"
   output_dir <- "~/Documents/Coding/MSstats_workflow/output/"
 }else{
-  return("Not Sam's computer")
+  input_dir <- "~/Coding/MSstats_workflow/input/"
+  output_dir <- "~/Coding/MSstats_workflow/output/"
 }
-
-input_dir <- "~/Documents/Coding/MSstats_workflow/input/"
-output_dir <- "~/Documents/Coding/MSstats_workflow/output/"
 
 # Specify the names of your raw data and annotations csv
 raw_file <- "sam_season_PSMs.txt"
@@ -223,8 +221,6 @@ for(comp in unique(MSstats.results$Label)){
     geom_hline(yintercept = -log10(0.05), linetype = "dashed", colour = "red") +
     geom_point(alpha = 0.25, show.legend = FALSE) +
     scale_color_manual(values = colours) +
-    xlim(-15, 15) +
-    ylim(0, 10) +
     ylab("-Log10(adjusted p-value)") +
     xlab("Log2 fold change") +
     ggtitle(paste("Volcano plot of", comp))
@@ -235,5 +231,6 @@ for(comp in unique(MSstats.results$Label)){
          width = 6,
          height = 6)
 }
+# End plotting loop
 ```
 
