@@ -25,7 +25,8 @@ https://www.bioconductor.org/packages/devel/bioc/vignettes/artMS/inst/doc/artMS_
 
 ## Current issues
 
-- Following the comparison testing, there are some issues. Some proteins have p-values and adjusted -pavlues of exactly 0, with infinite fold change. I have removed these, however I'm uncertain if this is the appropriate thing to do. I should discuss this with Lisa Woods. There are also some proteins which give a p-value/adjusted p-value of NA, and I've also removed these.
+- Following the comparison testing, there are some issues. Some proteins have p-values and adjusted -pavlues of exactly 0, with infinite fold change. I have removed these, however I'm uncertain if this is the appropriate thing to do. I should discuss this with Lisa Woods. I've since seen this on the Google groups for MSstats, which say to replace p-values of 0 with a very low constant. This is essentially due to floating-point error for very low numbers. See more here: https://groups.google.com/g/msstats/c/50cmwFpK-ho/m/V_BMSZyF3MYJ
+There are also some proteins which give a p-value/adjusted p-value of NA, and I've also removed these.
 
 - There is a series of warnings in the data-import and tidying step; "Warning in aggregator(Intensity, na.rm = TRUE) :
   no non-missing arguments to max; returning -Inf", which I should investigate further.
