@@ -33,6 +33,11 @@ There are also some proteins which give a p-value/adjusted p-value of NA, and I'
   
 - I would also like to add protein names in the format of gene names to replace the uniprot accession numbers.
 
+- Funny volcano plots noted, see discussion here:
+https://www.researchgate.net/post/Artefact_in_volcano_plot
+
+try running `MSstatsGroupComparison` instead of `groupComparison` in the comparison section.
+
 ## Solved issues
 - Currently I'm struggling to get the function `PDtoMSstatsFormat` to work. Initially I was missing the columns for "ProteinGroupAccessions" and "PrecursorArea", however I renamed the column"Master.Protein.Accessions" from the original dataset. "PrecursorArea" can be renamed from the "Precursor.Area" or "Precursor.Abundance" column, but note that these are only produced when running a quantified search in Proteome Discoverer.
 
