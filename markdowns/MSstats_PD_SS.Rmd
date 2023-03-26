@@ -70,9 +70,14 @@ input <- PDtoMSstatsFormat(raw,
                            annotation = annot_col,
                            removeProtein_with1Peptide = FALSE,
                            removeFewMeasurements = FALSE,
-                           log_file_path = paste0(output_dir, "logs/"))
+                           log_file_path = paste0(output_dir,
+                                                  "/logs/PDtoMSstatsFormat_log_",
+                                                  format(Sys.time(), "%Y_%m_%d_%H_%M_%S"),
+                                                  ".txt"),
+                           use_log_file = TRUE,
+                           verbose = FALSE)
 
-# Briefly check input
+ Briefly check input
 head(input)
 
 # Count the number of proteins
@@ -94,7 +99,12 @@ processed <- dataProcess(input,
                          censoredInt = "NA",
                          MBimpute = TRUE,
                          maxQuantileforCensored = 0.999,
-                         verbose = TRUE)
+                         log_file_path = paste0(output_dir,
+                                                  "/logs/dataProcess_log_",
+                                                  format(Sys.time(), "%Y_%m_%d_%H_%M_%S"),
+                                                  ".txt"),
+                         use_log_file = TRUE,
+                         verbose = FALSE)
 
 # Save results
 save(processed, file = paste(output_dir, "processed.rda", sep = ""))
@@ -150,7 +160,13 @@ comparison[3,] <- c(0, -1, 1, -1, 1)
 
 # Run the test
 test.MSstats <- groupComparison(contrast.matrix = comparison,
-                                data = processed)
+                                data = processed,
+                                log_file_path = paste0(output_dir,
+                                                  "/logs/groupComparison_log_",
+                                                  format(Sys.time(), "%Y_%m_%d_%H_%M_%S"),
+                                                  ".txt"),
+                                use_log_file = TRUE,
+                                verbose = FALSE)
 # Extracting the comparison results
 MSstats.results <- test.MSstats$ComparisonResult
 
