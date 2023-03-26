@@ -69,7 +69,8 @@ annot_col <- read.csv(paste0(input_dir, annotations_file),
 input <- PDtoMSstatsFormat(raw, 
                            annotation = annot_col,
                            removeProtein_with1Peptide = FALSE,
-                           removeFewMeasurements = FALSE)
+                           removeFewMeasurements = FALSE,
+                           log_file_path = paste0(output_dir, "logs/"))
 
 # Briefly check input
 head(input)
