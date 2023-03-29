@@ -259,6 +259,10 @@ Basic heatmap of proteins in processed data
 ```{r heatmap unfiltered, echo=FALSE}
 # create a matrix of protein abundance
 prot_mat <- processed$ProteinLevelData %>% select(Protein, originalRUN, LogIntensities) %>% pivot_wider(names_from = originalRUN, values_from = LogIntensities)
+# set row names as the proteins
+rownames(prot_mat) <- prot_mat$Protein
+# convert to matrix and remove row of protein names
+prot_mat <- prot_mat[,-1] %>% as.matrix()
 
 #create annotations for sample type
 column_ha <- HeatmapAnnotation(Condition = annot_col$Condition)
