@@ -17,6 +17,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(MSstats)
 library(tidyverse)
 library(EnhancedVolcano)
+library(ComplexHeatmap)
 ```
 
 This is my script to run proteomics data from mass spectrometry through the `MSstats` package for normalisation, quantification, and some QC. This is based on the following tutorial:
@@ -251,3 +252,24 @@ for(comp in unique(MSstats.results$Label)){
 # End plotting loop
 ```
 
+# Heatmaps
+
+Basic heatmap of proteins in processed data
+
+```{r heatmap unfiltered, echo=FALSE}
+# create a matrix of protein abundance
+prot_mat <- processed$ProteinLevelData %>% select(Protein, originalRUN, LogIntensities) %>% pivot_wider(names_from = originalRUN, values_from = LogIntensities)
+
+#create annotations for sample type
+column_ha <- HeatmapAnnotation(Condition = annot_col$Condition)
+#create heatmap of gene expression, scaled rows (genes)
+t(scale(t(prot_mat))) %>% 
+  Heatmap(row_title = "Proteins",
+          column_title = "Unfiltered proteome heatmap",
+          show_row_dend = FALSE,
+          show_column_dend = TRUE, 
+          column_names_gp = gpar(fontsize = 8),
+          bottom_annotation = column_ha,
+          show_row_names = FALSE,
+          show_heatmap_legend = FALSE)
+```
