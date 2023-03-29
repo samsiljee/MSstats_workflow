@@ -77,7 +77,7 @@ input <- PDtoMSstatsFormat(raw,
                            use_log_file = TRUE,
                            verbose = FALSE)
 
- Briefly check input
+# Briefly check input
 head(input)
 
 # Count the number of proteins
