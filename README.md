@@ -33,8 +33,11 @@ There are also some proteins which give a p-value/adjusted p-value of NA, and I'
   
 - I would also like to add protein names in the format of gene names to replace the uniprot accession numbers.
 
-- Funny volcano plots noted, see discussion here:
+- Funny volcano plots noted, see discussions here:
+
 https://www.researchgate.net/post/Artefact_in_volcano_plot
+
+https://groups.google.com/g/msstats/c/siW4LZc0KLk
 
 try running `MSstatsGroupComparison` instead of `groupComparison` in the comparison section.
 
