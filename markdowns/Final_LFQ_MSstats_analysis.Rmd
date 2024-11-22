@@ -15,89 +15,121 @@ This script was used to run the analysis on my final LFQ proteomics data.
 # Loading packages
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-# Note that `MSstats` is a Bioconductor package, and will need to be installed through Biocondutor rather than CRAN; BiocManager::install("MSstats")
-library(MSstats)
-library(dplyr)
-library(ggplot2)
+
+# Load packages
+library(MSstats) # Mass spec data statisitcal analysis
+library(MSstatsConvert) # Prepare input data for MSstats
+library(vroom) # Fast data loading
+library(dplyr) # Data manipulation
+library(ggplot2) # Plotting
+
+# Get the number of available cores, reserve 20% for other tasks
+available_cores <- floor(0.8 * parallel::detectCores())
 ```
 
 # Read in the data
 MS runs initially analysed in Proteome Discoverer 2.4, PSM files exported as text files for further processing here with `MSstats`.
 Annotation file manually created.
+The data is imported, then formatted for `MSstats` using `PDtoMSstatsFormat`.
 
 ```{r data import}
+# Set output directory
+output_dir <- paste0(getwd(), "/LFQ_output/")
+
 # Set input directory and get list of files
-input_dir <- paste0(getwd(), "/LFQ_input")
-files_list <- list.files(input_dir, full.names = TRUE)
+input_dir <- paste0(getwd(), "/LFQ_input/")
+files_list <- list.files(paste0(input_dir, "PSMs/"), full.names = TRUE)
 
 # Intialise blank data.frame and read in files
-raw <- data.frame()
+psms <- data.frame()
 for (i in files_list) {
-  raw <- rbind(raw, vroom(i))
+  psms <- rbind(psms, vroom(i))
 }
 
 # Rename the columns required for the `PDtoMSstatsFormat` call
-raw <- raw %>% rename(
-  ProteinGroupAccessions = Master.Protein.Accessions,
-  PrecursorArea = Precursor.Abundance,
-  Run = Spectrum.File
+psms <- psms %>% rename(
+  # ProteinGroupAccessions = `Master Protein Accessions`,
+  ProteinGroupAccessions = `Protein Accessions`,
+  PrecursorArea = `Precursor Abundance`,
+  SpectrumFile = `Spectrum File`
 )
 
-# Read annotations file. This should at least include columns for run, condition, and biological replicate. Every row should be a seperate run
-annot_col <- read.csv(paste0(input_dir, annotations_file),
+# Read in annotations file
+annotations <- read.csv(paste0(input_dir, "2D_ALI_annotations.csv"),
   sep = ",",
   stringsAsFactors = TRUE
 )
 
-# Format for `MSstats`. Please see ?PDtoMSstatsFormat for details on arguments
-input <- PDtoMSstatsFormat(raw,
-  annotation = annot_col,
+# Format for `MSstats` input
+MSstats_input <- MSstatsConvert::PDtoMSstatsFormat(
+  input = psms,
+  annotation = annotations,
+  useNumProteinsColumn = FALSE,
+  useUniquePeptide = TRUE,
+  summaryforMultipleRows = max,
+  removeFewMeasurements = FALSE, # Changed from default
+  removeOxidationMpeptides = FALSE,
   removeProtein_with1Peptide = FALSE,
-  removeFewMeasurements = FALSE,
+  which.quantification = "Precursor.Area",
+  which.proteinid = "Protein.Group.Accessions",
+  which.sequence = "Annotated.Sequence",
+  use_log_file = TRUE,
+  append = FALSE,
+  verbose = TRUE,
   log_file_path = paste0(
     output_dir,
     "/logs/PDtoMSstatsFormat_log_",
     format(Sys.time(), "%Y_%m_%d_%H_%M_%S"),
     ".txt"
-  ),
-  use_log_file = TRUE,
-  verbose = FALSE
+  )
 )
 
 # Briefly check input
-head(input)
+head(MSstats_input)
 
 # Count the number of proteins
-paste("There are", (input$ProteinName %>% unique() %>% length()), "proteins in this dataset")
+paste("There are", (MSstats_input$ProteinName %>% unique() %>% length()), "proteins in this dataset")
 
-# Check the column names in "input"
-colnames(input)
+# Save the prepared data
+save(MSstats_input, file = paste0(output_dir, "preprocessed.rda"))
 ```
 
 # Data Processing
 
-This chunk processes the input data including normalisation, censored cutoff, cleaning, and protein-level summarization. It saves the result in the output folder in the R data format. Please see `?dataProcess` for details on arguments for normalisation methods etc. Note that it gives warnings "Warning: Ran out of iterations and did not converge" I understand that this does not affect the output. The output object is structured as a list of three; 1. data.frame "FeatureLevelData" of PSM abundances, new abundances, censored etc. 2. data.frame "ProteinLevelData" of intensities and some QC stuff, missing features, imputed features, etc. 3. character "SummaryMethod", describing the method used (Tukey's median polish)
+This chunk processes the input data including normalisation, censored cutoff, cleaning, and protein-level summarization.
 
 ```{r data processing, echo = FALSE}
 # Process the input
-processed <- dataProcess(input,
+MSstats_processed <- dataProcess(
+  raw = MSstats_input,
+  logTrans = 2,
   normalization = "equalizeMedians",
+  nameStandards = NULL,
+  featureSubset = "all",
+  remove_uninformative_feature_outlier = FALSE,
+  min_feature_count = 2,
+  n_top_feature = 3,
   summaryMethod = "TMP",
+  equalFeatureVar = TRUE,
   censoredInt = "NA",
   MBimpute = TRUE,
+  remove50missing = FALSE,
+  fix_missing = NULL,
   maxQuantileforCensored = 0.999,
+  use_log_file = TRUE,
+  append = FALSE,
+  verbose = TRUE,
   log_file_path = paste0(
     output_dir,
     "/logs/dataProcess_log_",
     format(Sys.time(), "%Y_%m_%d_%H_%M_%S"),
     ".txt"
   ),
-  use_log_file = TRUE,
-  verbose = FALSE
+  numberOfCores = available_cores
 )
 
-# Save results
-save(processed, file = paste(output_dir, "processed.rda", sep = ""))
+# Save the processed data
+save(MSstats_processed, file = paste0(output_dir, "processed.rda"))
 ```
 
 # Data visualisation
@@ -112,7 +144,7 @@ dataProcessPlots(processed,
   which.Protein = "allonly",
   width = 7,
   height = 7,
-  address = paste(output_dir, "MSstats_", sep = "")
+  address = paste0(output_dir, "MSstats_")
 )
 
 # Produces individual plots for the different proteins, each peptide shown in a different colour
@@ -123,7 +155,7 @@ dataProcessPlots(processed,
   summaryPlot = TRUE,
   width = 7,
   height = 7,
-  address = paste(output_dir, "MSstats_", sep = "")
+  address = paste0(output_dir, "MSstats_")
 )
 
 # Produces a plot for each protein, with the estimated abundance for each protein as based on the modified mixed linear effects model used by `MSstats`
@@ -132,7 +164,7 @@ dataProcessPlots(processed,
   ylimDown = 0,
   width = 7,
   height = 7,
-  address = paste(output_dir, "MSstats_", sep = "")
+  address = paste0(output_dir, "MSstats_")
 )
 ```
 
