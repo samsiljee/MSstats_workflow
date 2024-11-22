@@ -32,10 +32,10 @@ Welcome to the script! Here are the variables that you can change to specificall
 
 ```{r user variables, include = TRUE}
 # Specify input and output directories. one layout for my personal computer, another for GMRI and VUW
-if(getwd() == "C:/Users/Sam/Documents/Coding/MSstats_workflow/markdowns"){
+if (getwd() == "C:/Users/Sam/Documents/Coding/MSstats_workflow/markdowns") {
   input_dir <- "~/Documents/Coding/MSstats_workflow/input/"
   output_dir <- "~/Documents/Coding/MSstats_workflow/output/"
-}else{
+} else {
   input_dir <- "~/Coding/MSstats_workflow/input/"
   output_dir <- "~/Coding/MSstats_workflow/output/"
 }
@@ -43,6 +43,9 @@ if(getwd() == "C:/Users/Sam/Documents/Coding/MSstats_workflow/markdowns"){
 # Specify the names of your raw data and annotations csv
 raw_file <- "sam_season_PSMs.txt"
 annotations_file <- "sam_season_annotation.csv"
+
+# Determine the number of cores available
+available_cores <- floor(0.8 * parallel::detectCores())
 ```
 
 # Data import
@@ -52,37 +55,53 @@ This workflow is to import data at the PSM table from Proteome Discoverer 2.4 (P
 ```{r data import}
 # Read raw data from PSM table
 raw <- read.csv(paste0(input_dir, raw_file),
-                sep = "\t",
-                stringsAsFactors = FALSE)
+  sep = "\t",
+  stringsAsFactors = FALSE
+)
 
 # Manually add (rename) the columns required in the `PDtoMSstatsFormat` call
 raw <- raw %>%
-  mutate(ProteinGroupAccessions = .$Master.Protein.Accessions,
-         PrecursorArea = .$Precursor.Abundance,
-         Run = .$Spectrum.File)
+  mutate(
+    ProteinGroupAccessions = .$Master.Protein.Accessions,
+    PrecursorArea = .$Precursor.Abundance,
+    Run = .$Spectrum.File
+  )
 
 # Read annotations file. This should at least include columns for run, condition, and biological replicate. Every row should be a seperate run
 annot_col <- read.csv(paste0(input_dir, annotations_file),
-                      sep = ",",
-                      stringsAsFactors = TRUE)
+  sep = ",",
+  stringsAsFactors = TRUE
+)
 
 # Format for `MSstats`. Please see ?PDtoMSstatsFormat for details on arguments
-input <- PDtoMSstatsFormat(raw, 
-                           annotation = annot_col,
-                           removeProtein_with1Peptide = FALSE,
-                           removeFewMeasurements = FALSE,
-                           log_file_path = paste0(output_dir,
-                                                  "/logs/PDtoMSstatsFormat_log_",
-                                                  format(Sys.time(), "%Y_%m_%d_%H_%M_%S"),
-                                                  ".txt"),
-                           use_log_file = TRUE,
-                           verbose = FALSE)
+input <- PDtoMSstatsFormat(
+  raw,
+  annotation = annot_col,
+  useNumProteinsColumn = FALSE,
+  useUniquePeptide = TRUE,
+  summaryforMultipleRows = max,
+  removeFewMeasurements = TRUE,
+  removeOxidationMpeptides = FALSE,
+  removeProtein_with1Peptide = FALSE,
+  which.quantification = "Precursor.Area",
+  which.proteinid = "Protein.Group.Accessions",
+  which.sequence = "Annotated.Sequence",
+  use_log_file = TRUE,
+  append = FALSE,
+  log_file_path = paste0(
+    output_dir,
+    "/logs/PDtoMSstatsFormat_log_",
+    format(Sys.time(), "%Y_%m_%d_%H_%M_%S"),
+    ".txt"
+  ),
+  verbose = TRUE
+)
 
 # Briefly check input
 head(input)
 
 # Count the number of proteins
-paste("There are", (input$ProteinName %>% unique %>% length), "proteins in this dataset")
+paste("There are", (input$ProteinName %>% unique() %>% length()), "total proteins in this dataset")
 
 # Check the column names in "input"
 colnames(input)
@@ -94,18 +113,32 @@ This chunk processes the input data including normalisation, censored cutoff, cl
 
 ```{r data processing, echo = FALSE}
 # Process the input
-processed <- dataProcess(input,
-                         normalization = 'equalizeMedians',
-                         summaryMethod = "TMP",
-                         censoredInt = "NA",
-                         MBimpute = TRUE,
-                         maxQuantileforCensored = 0.999,
-                         log_file_path = paste0(output_dir,
-                                                  "/logs/dataProcess_log_",
-                                                  format(Sys.time(), "%Y_%m_%d_%H_%M_%S"),
-                                                  ".txt"),
-                         use_log_file = TRUE,
-                         verbose = FALSE)
+processed <- dataProcess(
+  input,
+  logTrans = 2,
+  normalization = "equalizeMedians",
+  nameStandards = NULL,
+  featureSubset = "all",
+  remove_uninformative_feature_outlier = FALSE,
+  min_feature_count = 2,
+  n_top_feature = 3,
+  summaryMethod = "TMP",
+  censoredInt = "NA",
+  MBimpute = TRUE,
+  remove50missing = FALSE,
+  fix_missing = NULL,
+  maxQuantileforCensored = 0.999,
+  use_log_file = TRUE,
+  append = FALSE,
+  verbose = TRUE,
+  log_file_path = paste0(
+    output_dir,
+    "/logs/dataProcess_log_",
+    format(Sys.time(), "%Y_%m_%d_%H_%M_%S"),
+    ".txt"
+  ),
+  numberOfCores = available_cores # Only works for Linux & Mac OS
+)
 
 # Save results
 save(processed, file = paste(output_dir, "processed.rda", sep = ""))
@@ -118,30 +151,33 @@ These plots are from functions built-in to `MSstats` and are for quality control
 ```{r data visualisation, echo = FALSE}
 # This produces a boxplot, of intensity by sample. Used as a basic way to check normalisation
 dataProcessPlots(processed,
-                 type = "QCplot", 
-                 ylimDown = 0, 
-                 which.Protein = "allonly",
-                 width = 7,
-                 height = 7,  
-                 address = paste(output_dir, "MSstats_", sep = ""))
+  type = "QCplot",
+  ylimDown = 0,
+  which.Protein = "allonly",
+  width = 7,
+  height = 7,
+  address = paste(output_dir, "MSstats_", sep = "")
+)
 
 # Produces individual plots for the different proteins, each peptide shown in a different colour
 dataProcessPlots(processed,
-                 type = "Profileplot", 
-                 ylimDown = 0, 
-                 originalPlot = TRUE,
-                 summaryPlot = TRUE,
-                 width = 7,
-                 height = 7,  
-                 address = paste(output_dir, "MSstats_", sep = ""))
+  type = "Profileplot",
+  ylimDown = 0,
+  originalPlot = TRUE,
+  summaryPlot = TRUE,
+  width = 7,
+  height = 7,
+  address = paste(output_dir, "MSstats_", sep = "")
+)
 
 # Produces a plot for each protein, with the estimated abundance for each protein as based on the modified mixed linear effects model used by `MSstats`
 dataProcessPlots(processed,
-                 type = "Conditionplot", 
-                 ylimDown = 0, 
-                 width = 7,
-                 height = 7,  
-                 address = paste(output_dir, "MSstats_", sep = ""))
+  type = "Conditionplot",
+  ylimDown = 0,
+  width = 7,
+  height = 7,
+  address = paste(output_dir, "MSstats_", sep = "")
+)
 ```
 
 # Model-based comparison, and adjusted p-value
@@ -155,38 +191,44 @@ colnames(comparison) <- levels(annot_col$Condition)
 
 # Each row in the matrix is a comparison, make as many as wanted
 rownames(comparison) <- c("HEK vs SeasonB", "Season lysC vs Trypsin", "Season ZT vs SC")
-comparison[1,] <- c(1, -1, -1, -1, -1)
-comparison[2,] <- c(0, 1, 1, -1, -1)
-comparison[3,] <- c(0, -1, 1, -1, 1)
+comparison[1, ] <- c(1, -1, -1, -1, -1)
+comparison[2, ] <- c(0, 1, 1, -1, -1)
+comparison[3, ] <- c(0, -1, 1, -1, 1)
 
 # Run the test
-test.MSstats <- groupComparison(contrast.matrix = comparison,
-                                data = processed,
-                                log_file_path = paste0(output_dir,
-                                                  "/logs/groupComparison_log_",
-                                                  format(Sys.time(), "%Y_%m_%d_%H_%M_%S"),
-                                                  ".txt"),
-                                use_log_file = TRUE,
-                                verbose = FALSE)
+test.MSstats <- groupComparison(
+  contrast.matrix = comparison,
+  data = processed,
+  log_file_path = paste0(
+    output_dir,
+    "/logs/groupComparison_log_",
+    format(Sys.time(), "%Y_%m_%d_%H_%M_%S"),
+    ".txt"
+  ),
+  use_log_file = TRUE,
+  verbose = FALSE
+)
 # Extracting the comparison results
 MSstats.results <- test.MSstats$ComparisonResult
 
 # Checking for outliers, results in which there is an infinite fold-change
 outliers <- which(MSstats.results$log2FC == Inf | MSstats.results$log2FC == -Inf)
-paste("There are", length(outliers), "outliers where the adjusted P value is zero, and fold-change is infinite", sep = " ")
+paste("There are", length(outliers), "proteins missing in one of the comparison groups (infinite fold-change)", sep = " ")
 
 # Remove outliers
-MSstats.results <- MSstats.results[-outliers,]
+MSstats.results <- MSstats.results[-outliers, ]
 
 # Remove rows with NAs for p value/adjusted p value
-MSstats.results <- MSstats.results[!is.na(MSstats.results$adj.pvalue),]
+MSstats.results <- MSstats.results[!is.na(MSstats.results$adj.pvalue), ]
 
 # Add column for up/downregulated or non-significant
 MSstats.results$Dif <- ifelse(MSstats.results$log2FC > 1 & MSstats.results$adj.pvalue < 0.05,
-                                 "Upregulated",
-                                 ifelse(MSstats.results$log2FC < -1 & MSstats.results$adj.pvalue < 0.05,
-                                        "Downregulated",
-                                        "Not significant"))
+  "Upregulated",
+  ifelse(MSstats.results$log2FC < -1 & MSstats.results$adj.pvalue < 0.05,
+    "Downregulated",
+    "Not significant"
+  )
+)
 
 # save the results
 save(MSstats.results, file = paste(output_dir, "MSstats.results.rda", sep = ""))
@@ -196,42 +238,44 @@ write.csv(MSstats.results, file = paste(output_dir, "MSstatsResults.csv", sep = 
 # Comparison plots
 
 ```{r comparison plots, echo = FALSE}
-
-
-#Individual plots of log2FC with error bars for each protein
-groupComparisonPlots(data = MSstats.results,
-                     type = "ComparisonPlot",
-                     width = 6,
-                     height = 6,
-                     address = paste(output_dir, "MSstats_"))
+# Individual plots of log2FC with error bars for each protein
+groupComparisonPlots(
+  data = MSstats.results,
+  type = "ComparisonPlot",
+  width = 6,
+  height = 6,
+  address = paste(output_dir, "MSstats_")
+)
 ```
 
 # Volcano plots
 
 ```{r volcano plots}
-#Basic volcano plot of results using `MSstats` function
-groupComparisonPlots(data = MSstats.results,
-                     type = "VolcanoPlot",
-                     width = 6,
-                     height = 6,
-                     address = paste(output_dir, "MSstats_"))
+# Basic volcano plot of results using `MSstats` function
+groupComparisonPlots(
+  data = MSstats.results,
+  type = "VolcanoPlot",
+  width = 6,
+  height = 6,
+  address = paste(output_dir, "MSstats_")
+)
 
 # Volcano plot using old code
 EnhancedVolcano(MSstats.results,
-                lab = rownames(MSstats.results),
-                x = "log2FC",
-                y = "adj.pvalue",
-                FCcutoff = 1,
-                pCutoff = 0.05)
+  lab = rownames(MSstats.results),
+  x = "log2FC",
+  y = "adj.pvalue",
+  FCcutoff = 1,
+  pCutoff = 0.05
+)
 
 # Define colours for use in ggplot
-colours <- c("red", "blue", "black") 
+colours <- c("red", "blue", "black")
 names(colours) <- c("Upregulated", "Downregulated", "Not significant")
 
 # Start for loop to generate plots by comparison
-for(comp in unique(MSstats.results$Label)){
-
-# Volcano plot using ggplot
+for (comp in unique(MSstats.results$Label)) {
+  # Volcano plot using ggplot
   volcano <- MSstats.results %>%
     filter(Label == comp) %>%
     ggplot(aes(x = log2FC, y = -log10(adj.pvalue), col = Dif)) +
@@ -243,11 +287,13 @@ for(comp in unique(MSstats.results$Label)){
     xlab("Log2 fold change") +
     ggtitle(paste("Volcano plot of", comp))
 
-# Save plot
-  ggsave(filename = paste(output_dir, comp, "_ggvolcano.png", sep = ""),
-         plot = volcano,
-         width = 6,
-         height = 6)
+  # Save plot
+  ggsave(
+    filename = paste(output_dir, comp, "_ggvolcano.png", sep = ""),
+    plot = volcano,
+    width = 6,
+    height = 6
+  )
 }
 # End plotting loop
 ```
@@ -258,22 +304,26 @@ Basic heatmap of proteins in processed data
 
 ```{r heatmap unfiltered, echo=FALSE}
 # create a matrix of protein abundance
-prot_mat <- processed$ProteinLevelData %>% select(Protein, originalRUN, LogIntensities) %>% pivot_wider(names_from = originalRUN, values_from = LogIntensities)
+prot_mat <- processed$ProteinLevelData %>%
+  select(Protein, originalRUN, LogIntensities) %>%
+  pivot_wider(names_from = originalRUN, values_from = LogIntensities)
 # set row names as the proteins
 rownames(prot_mat) <- prot_mat$Protein
 # convert to matrix and remove row of protein names
-prot_mat <- prot_mat[,-1] %>% as.matrix()
+prot_mat <- prot_mat[, -1] %>% as.matrix()
 
-#create annotations for sample type
+# create annotations for sample type
 column_ha <- HeatmapAnnotation(Condition = annot_col$Condition)
-#create heatmap of gene expression, scaled rows (genes)
-t(scale(t(prot_mat))) %>% 
-  Heatmap(row_title = "Proteins",
-          column_title = "Unfiltered proteome heatmap",
-          show_row_dend = FALSE,
-          show_column_dend = TRUE, 
-          column_names_gp = gpar(fontsize = 8),
-          bottom_annotation = column_ha,
-          show_row_names = FALSE,
-          show_heatmap_legend = FALSE)
+# create heatmap of gene expression, scaled rows (genes)
+t(scale(t(prot_mat))) %>%
+  Heatmap(
+    row_title = "Proteins",
+    column_title = "Unfiltered proteome heatmap",
+    show_row_dend = FALSE,
+    show_column_dend = TRUE,
+    column_names_gp = gpar(fontsize = 8),
+    bottom_annotation = column_ha,
+    show_row_names = FALSE,
+    show_heatmap_legend = FALSE
+  )
 ```
