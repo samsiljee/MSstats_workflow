@@ -1,8 +1,11 @@
 # All output
 output/*
+LFQ_output/*
+*.log
 
 # All input
 input/*
+LFQ_input/*
 
 # History files
 .Rhistory
