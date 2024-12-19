@@ -12,7 +12,7 @@ copyright (c) - 2024 Sam Siljee
 # Introduction
 This script was used to run the analysis on my final LFQ proteomics data.
 
-# Loading packages
+# Setup
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
@@ -25,6 +25,31 @@ library(ggplot2) # Plotting
 
 # Get the number of available cores, reserve 20% for other tasks
 available_cores <- floor(0.8 * parallel::detectCores())
+
+# Function to import the data given a data type key
+import_psm_data <- function(input_dir, file_list) {
+  # Filter files list to only include relevant files
+  filtered_file_list <- grep(file_list, pattern = paste0("_PSMs.txt$"), value = TRUE)
+
+  # initialise data.frame
+  dat <- data.frame()
+
+  # Loop through and import files - add index to connect with annotations
+  for (i in filtered_file_list) {
+    dat <- bind_rows(
+      dat,
+      vroom(i)
+    )
+  }
+
+  # return combined data.frame
+  return(dat)
+}
+
+# Set directories and annotations file name
+input_dir <- paste0(getwd(), "/LFQ_input/")
+output_dir <- paste0(getwd(), "/LFQ_output/")
+annotations_file <- "run_annotations.tsv"
 ```
 
 # Read in the data
@@ -33,36 +58,26 @@ Annotation file manually created.
 The data is imported, then formatted for `MSstats` using `PDtoMSstatsFormat`.
 
 ```{r data import}
-# Set output directory
-output_dir <- paste0(getwd(), "/LFQ_output/")
+# Load PD LFQ output from txt files
+files_list <- list.files(input_dir, full.names = TRUE)
 
-# Set input directory and get list of files
-input_dir <- paste0(getwd(), "/LFQ_input/")
-files_list <- list.files(paste0(input_dir, "PSMs/"), full.names = TRUE)
+# Load PSM data data
+PSMs <- import_psm_data(input_dir, list.files(input_dir, full.names = TRUE))
 
-# Intialise blank data.frame and read in files
-psms <- data.frame()
-for (i in files_list) {
-  psms <- rbind(psms, vroom(i))
-}
+# Load run summary to use as annontations file, add "Path" column to merge with other datasets
+annotations <- read.delim(paste0(input_dir, annotations_file), header = TRUE, stringsAsFactors = TRUE)
 
 # Rename the columns required for the `PDtoMSstatsFormat` call
-psms <- psms %>% rename(
+PSMs <- PSMs %>% rename(
   # ProteinGroupAccessions = `Master Protein Accessions`,
   ProteinGroupAccessions = `Protein Accessions`,
   PrecursorArea = `Precursor Abundance`,
   SpectrumFile = `Spectrum File`
 )
 
-# Read in annotations file
-annotations <- read.csv(paste0(input_dir, "2D_ALI_annotations.csv"),
-  sep = ",",
-  stringsAsFactors = TRUE
-)
-
 # Format for `MSstats` input
 MSstats_input <- MSstatsConvert::PDtoMSstatsFormat(
-  input = psms,
+  input = PSMs,
   annotation = annotations,
   useNumProteinsColumn = FALSE,
   useUniquePeptide = TRUE,
