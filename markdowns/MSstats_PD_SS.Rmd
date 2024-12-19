@@ -18,13 +18,42 @@ library(MSstats)
 library(tidyverse)
 library(EnhancedVolcano)
 library(ComplexHeatmap)
+
+# Function to import the data given a data type key
+import_txt_data <- function(type_key, input_dir, file_list, annotations) {
+  # Filter files list to only include relevant files
+  filtered_file_list <- grep(file_list, pattern = paste0("_", type_key, ".txt$"), value = TRUE)
+
+  # initialise data.frame
+  dat <- data.frame()
+
+  # Loop through and import files - add index to connect with annotations
+  for (i in filtered_file_list) {
+    dat <- bind_rows(
+      dat,
+      mutate(
+        vroom(i),
+        "Spectrum File" = gsub(paste0("_", type_key, ".txt"), ".raw", gsub(input_dir, "", i))
+      )
+    )
+  }
+
+  # Merge with annotations
+  dat <- merge(
+    dat,
+    mutate(annotations, "Spectrum File" = paste0(Run, ".raw")),
+    by = "Spectrum File",
+    all.x = TRUE
+  )
+
+  # return combined data.frame
+  return(dat)
+}
 ```
 
-This is my script to run proteomics data from mass spectrometry through the `MSstats` package for normalisation, quantification, and some QC. This is based on the following tutorial:
+This is my script to run proteomics data from mass spectrometry through the `MSstats` package for normalisation, quantification, and some QC. A great tutorial can be found here:
 
 <https://meenachoi.github.io/MayInstitute2019RstatsMS/>
-
-Please see the tutorial or the `MSstats` package help for details on how to use the package, for any other assistance or advice you can contact Sam at [samsiljee\@gmail.com](mailto:samsiljee@gmail.com){.email} or through his github:
 
 # User input
 
