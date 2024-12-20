@@ -7,6 +7,9 @@ LFQ_output/*
 input/*
 LFQ_input/*
 
+# R project file
+*.Rproj
+
 # History files
 .Rhistory
 .Rapp.history
