@@ -16,6 +16,12 @@ This script was used to run the analysis on my final LFQ proteomics data.
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
+# Set directories and annotations file name
+input_dir <- paste0(getwd(), "/LFQ_input/")
+output_dir <- paste0(getwd(), "/LFQ_output/")
+annotations_file <- "quick_run_annotations.tsv"
+contrast_matrix_file <- "quick_contrast_matrix.tsv"
+
 # Load packages
 library(MSstats) # Mass spec data statisitcal analysis
 library(MSstatsConvert) # Prepare input data for MSstats
@@ -45,11 +51,6 @@ import_psm_data <- function(input_dir, file_list) {
   # return combined data.frame
   return(dat)
 }
-
-# Set directories and annotations file name
-input_dir <- paste0(getwd(), "/LFQ_input/")
-output_dir <- paste0(getwd(), "/LFQ_output/")
-annotations_file <- "run_annotations.tsv"
 ```
 
 # Read in the data
@@ -64,8 +65,13 @@ files_list <- list.files(input_dir, full.names = TRUE)
 # Load PSM data data
 PSMs <- import_psm_data(input_dir, list.files(input_dir, full.names = TRUE))
 
-# Load run summary to use as annontations file, add "Path" column to merge with other datasets
+# Load annotations file
 annotations <- read.delim(paste0(input_dir, annotations_file), header = TRUE, stringsAsFactors = TRUE)
+
+# Load contrast matrix file
+contrast_matrix <- read.delim(paste0(input_dir, contrast_matrix_file), header = TRUE)
+row.names(contrast_matrix) <- contrast_matrix[,1]
+contrast_matrix <- contrast_matrix[,-1]
 
 # Rename the columns required for the `PDtoMSstatsFormat` call
 PSMs <- PSMs %>% rename(
@@ -85,9 +91,9 @@ MSstats_input <- MSstatsConvert::PDtoMSstatsFormat(
   removeFewMeasurements = FALSE, # Changed from default
   removeOxidationMpeptides = FALSE,
   removeProtein_with1Peptide = FALSE,
-  which.quantification = "Precursor.Area",
-  which.proteinid = "Protein.Group.Accessions",
-  which.sequence = "Annotated.Sequence",
+  which.quantification = "PrecursorArea",
+  which.proteinid = "ProteinGroupAccessions",
+  which.sequence = "AnnotatedSequence",
   use_log_file = TRUE,
   append = FALSE,
   verbose = TRUE,
@@ -153,7 +159,7 @@ These plots are from functions built-in to `MSstats` and are for quality control
 
 ```{r data visualisation, echo = FALSE}
 # This produces a boxplot, of intensity by sample. Used as a basic way to check normalisation
-dataProcessPlots(processed,
+dataProcessPlots(MSstats_processed,
   type = "QCplot",
   ylimDown = 0,
   which.Protein = "allonly",
@@ -163,7 +169,7 @@ dataProcessPlots(processed,
 )
 
 # Produces individual plots for the different proteins, each peptide shown in a different colour
-dataProcessPlots(processed,
+dataProcessPlots(MSstats_processed,
   type = "Profileplot",
   ylimDown = 0,
   originalPlot = TRUE,
@@ -174,7 +180,7 @@ dataProcessPlots(processed,
 )
 
 # Produces a plot for each protein, with the estimated abundance for each protein as based on the modified mixed linear effects model used by `MSstats`
-dataProcessPlots(processed,
+dataProcessPlots(MSstats_processed,
   type = "Conditionplot",
   ylimDown = 0,
   width = 7,
@@ -188,54 +194,43 @@ dataProcessPlots(processed,
 First you will need to set up a comparison matrix describing which samples to compare to the others. This is dependant on the order of your runs. A matrix is used with each row as a particular combination of comparisons. Noted in the tutorial document: "We define our contrast matrix by adding a column for every condition, in alphabetical order". Alternatively, use "pairwise" for contrast.matrix argument. I was initially getting an error in the `groupComparison` call, however I believe this is due to the fact that I had uneven numbers of runs. The sum of each row of the comparison matrix should always be 0, with each group totalling to one. This can be fixed by using fractions when indicating multiple samples from the same group. However, I have not quite gotten this to work yet. The output file is a list of 3 elements; 1. data.frame "ComparisonResult" with log2FC, pvalue, etc. by protein 2. data.frame "ModelQC" with abundances etc 3. list "FittedModel" with one model for each protein of class 'lmerMod' from the `lme4` package
 
 ```{r model based comparison, echo = FALSE}
-# Set up the comparison matrix
-comparison <- matrix(ncol = (length(levels(annot_col$Condition))), nrow = 3)
-colnames(comparison) <- levels(annot_col$Condition)
-
-# Each row in the matrix is a comparison, make as many as wanted
-rownames(comparison) <- c("HEK vs SeasonB", "Season lysC vs Trypsin", "Season ZT vs SC")
-comparison[1, ] <- c(1, -1, -1, -1, -1)
-comparison[2, ] <- c(0, 1, 1, -1, -1)
-comparison[3, ] <- c(0, -1, 1, -1, 1)
-
 # Run the test
-test.MSstats <- groupComparison(
-  contrast.matrix = comparison,
-  data = processed,
+test_MSstats <- groupComparison(
+  contrast.matrix = contrast_matrix,
+  data = MSstats_processed,
+  save_fitted_models = FALSE,
+  log_base = 2,
+  append = FALSE,
+  use_log_file = TRUE,
+  verbose = TRUE,
   log_file_path = paste0(
     output_dir,
     "/logs/groupComparison_log_",
     format(Sys.time(), "%Y_%m_%d_%H_%M_%S"),
     ".txt"
   ),
-  use_log_file = TRUE,
-  verbose = FALSE
+  numberOfCores = available_cores
 )
+
 # Extracting the comparison results
-MSstats.results <- test.MSstats$ComparisonResult
+MSstats_results <- test_MSstats$ComparisonResult
 
 # Checking for outliers, results in which there is an infinite fold-change
-outliers <- which(MSstats.results$log2FC == Inf | MSstats.results$log2FC == -Inf)
+outliers <- which(MSstats_results$log2FC == Inf | MSstats_results$log2FC == -Inf)
 paste("There are", length(outliers), "outliers where the adjusted P value is zero, and fold-change is infinite", sep = " ")
 
-# Remove outliers
-MSstats.results <- MSstats.results[-outliers, ]
-
-# Remove rows with NAs for p value/adjusted p value
-MSstats.results <- MSstats.results[!is.na(MSstats.results$adj.pvalue), ]
-
 # Add column for up/downregulated or non-significant
-MSstats.results$Dif <- ifelse(MSstats.results$log2FC > 1 & MSstats.results$adj.pvalue < 0.05,
+MSstats_results$Dif <- ifelse(MSstats_results$log2FC > 1 & MSstats_results$adj.pvalue < 0.05,
   "Upregulated",
-  ifelse(MSstats.results$log2FC < -1 & MSstats.results$adj.pvalue < 0.05,
+  ifelse(MSstats_results$log2FC < -1 & MSstats_results$adj.pvalue < 0.05,
     "Downregulated",
     "Not significant"
   )
 )
 
 # save the results
-save(MSstats.results, file = paste(output_dir, "MSstats.results.rda", sep = ""))
-write.csv(MSstats.results, file = paste(output_dir, "MSstatsResults.csv", sep = ""))
+save(MSstats_results, file = paste(output_dir, "MSstats_results.rda", sep = ""))
+write.csv(MSstats_results, file = paste(output_dir, "MSstatsResults.csv", sep = ""))
 ```
 
 # Comparison plots
