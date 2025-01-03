@@ -217,7 +217,7 @@ MSstats_results <- test_MSstats$ComparisonResult
 
 # Checking for outliers, results in which there is an infinite fold-change
 outliers <- which(MSstats_results$log2FC == Inf | MSstats_results$log2FC == -Inf)
-paste("There are", length(outliers), "outliers where the adjusted P value is zero, and fold-change is infinite", sep = " ")
+paste("There are", length(outliers), "proteins found only in one condition, where the adjusted P value is zero, and fold-change is infinite")
 
 # Add column for up/downregulated or non-significant
 MSstats_results$Dif <- ifelse(MSstats_results$log2FC > 1 & MSstats_results$adj.pvalue < 0.05,
@@ -238,7 +238,7 @@ write.csv(MSstats_results, file = paste(output_dir, "MSstatsResults.csv", sep = 
 ```{r comparison plots, echo = FALSE}
 # Individual plots of log2FC with error bars for each protein
 groupComparisonPlots(
-  data = MSstats.results,
+  data = MSstats_results,
   type = "ComparisonPlot",
   width = 6,
   height = 6,
