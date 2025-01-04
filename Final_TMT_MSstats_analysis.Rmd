@@ -5,13 +5,9 @@ date: "2025-01-03"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
-
-Created: 2024/11/22 
+Created: 2025/01/04
 Written by: Sam Siljee
-copyright (c) - 2024 Sam Siljee
+copyright (c) - 2025 Sam Siljee
 
 # Introduction
 This script was used to run the analysis on my final LFQ proteomics data.
@@ -23,18 +19,15 @@ knitr::opts_chunk$set(echo = TRUE)
 # Set directories and annotations file name
 input_dir <- paste0(getwd(), "/TMT_input/")
 output_dir <- paste0(getwd(), "/TMT_output/")
-annotations_file <- "quick_run_annotations.tsv"
-contrast_matrix_file <- "quick_contrast_matrix.tsv"
+run_annotations_file <- "run_annotations.tsv"
+channel_annotations_file <- "channel_annotations.tsv"
+contrast_matrix_file <- "contrast_matrix.tsv"
 
 # Load packages
 library(MSstatsTMT) # Mass spec data statisitcal analysis
 library(MSstatsConvert) # Prepare input data for MSstats
 library(vroom) # Fast data loading
 library(dplyr) # Data manipulation
-library(ggplot2) # Plotting
-
-# Get the number of available cores, reserve 20% for other tasks
-available_cores <- floor(0.8 * parallel::detectCores())
 
 # Function to import the data given a data type key
 import_psm_data <- function(input_dir, file_list) {
@@ -58,63 +51,155 @@ import_psm_data <- function(input_dir, file_list) {
 ```
 
 # Read in the data
-MS runs initially analysed in Proteome Discoverer 2.4, PSM files exported as text files for further processing here with `MSstats`.
+MS runs initially analysed in Proteome Discoverer 2.4, PSM files exported as text files for further processing here with `MSstatsTMT`.
 Annotation file manually created.
-The data is imported, then formatted for `MSstats` using `PDtoMSstatsFormat`.
+The data is imported, then formatted for `MSstatsTMT` using `PDtoMSstatsTMTFormat`.
 
 ```{r data import}
-# Load PD LFQ output from txt files
-files_list <- list.files(input_dir, full.names = TRUE)
-
 # Load PSM data data
 PSMs <- import_psm_data(input_dir, list.files(input_dir, full.names = TRUE))
 
 # Load annotations file
-annotations <- read.delim(paste0(input_dir, annotations_file), header = TRUE, stringsAsFactors = TRUE)
+annotations <- full_join(
+  read.delim(paste0(input_dir, run_annotations_file), header = TRUE, stringsAsFactors = TRUE),
+  read.delim(paste0(input_dir, channel_annotations_file), header = TRUE, stringsAsFactors = TRUE)
+)
 
 # Load contrast matrix file
 contrast_matrix <- read.delim(paste0(input_dir, contrast_matrix_file), header = TRUE)
 row.names(contrast_matrix) <- contrast_matrix[,1]
 contrast_matrix <- contrast_matrix[,-1]
 
-# Rename the columns required for the `PDtoMSstatsFormat` call
-PSMs <- PSMs %>% rename(
-  # ProteinGroupAccessions = `Master Protein Accessions`,
-  ProteinGroupAccessions = `Protein Accessions`,
-  PrecursorArea = `Precursor Abundance`,
-  SpectrumFile = `Spectrum File`
-)
-
-# Format for `MSstats` input
-MSstats_input <- MSstatsConvert::PDtoMSstatsFormat(
+# Format for `MSstatsTMT` input
+MSstatsTMT_input <- MSstatsTMT::PDtoMSstatsTMTFormat(
   input = PSMs,
   annotation = annotations,
-  useNumProteinsColumn = FALSE,
+  which.proteinid = "Protein Accessions",
+  useNumProteinsColumn = TRUE,
   useUniquePeptide = TRUE,
-  summaryforMultipleRows = max,
-  removeFewMeasurements = FALSE, # Changed from default
-  removeOxidationMpeptides = FALSE,
-  removeProtein_with1Peptide = FALSE,
-  which.quantification = "PrecursorArea",
-  which.proteinid = "ProteinGroupAccessions",
-  which.sequence = "AnnotatedSequence",
+  rmPSM_withfewMea_withinRun = TRUE,
+  rmProtein_with1Feature = FALSE,
+  summaryforMultipleRows = sum,
   use_log_file = TRUE,
   append = FALSE,
   verbose = TRUE,
   log_file_path = paste0(
     output_dir,
-    "/logs/PDtoMSstatsFormat_log_",
+    "/logs/PDtoMSstatsTMTFormat_log_",
     format(Sys.time(), "%Y_%m_%d_%H_%M_%S"),
     ".txt"
   )
 )
 
 # Briefly check input
-head(MSstats_input)
+head(MSstatsTMT_input)
 
 # Count the number of proteins
-paste("There are", (MSstats_input$ProteinName %>% unique() %>% length()), "proteins in this dataset")
+paste("There are", (MSstatsTMT_input$ProteinName %>% unique() %>% length()), "proteins in this dataset")
 
 # Save the prepared data
-save(MSstats_input, file = paste0(output_dir, "preprocessed.rda"))
+save(MSstatsTMT_input, file = paste0(output_dir, "TMT_preprocessed.rda"))
+```
+
+# Data Processing
+
+This chunk processes the input data including normalisation, censored cutoff, cleaning, and protein-level summarization.
+
+```{r data processing, echo = FALSE}
+# Process the input
+MSstatsTMT_processed <- MSstatsTMT::proteinSummarization(
+  data = MSstatsTMT_input,
+  method = "msstats",
+  global_norm = TRUE,
+  reference_norm = TRUE,
+  remove_norm_channel = TRUE,
+  remove_empty_channel = TRUE,
+  MBimpute = TRUE,
+  maxQuantileforCensored = NULL,
+  use_log_file = TRUE,
+  append = FALSE,
+  verbose = TRUE,
+  log_file_path = paste0(
+    output_dir,
+    "/logs/proteinSummarization_log_",
+    format(Sys.time(), "%Y_%m_%d_%H_%M_%S"),
+    ".txt"
+  ),
+  msstats_log_path = paste0(
+    output_dir,
+    "/logs/MSstats_proteinSummarization_log_",
+    format(Sys.time(), "%Y_%m_%d_%H_%M_%S"),
+    ".txt"
+  )
+)
+
+# Save the processed data
+save(MSstatsTMT_processed, file = paste0(output_dir, "TMT_processed.rda"))
+```
+
+# Data visualisation
+
+These plots are from functions built-in to `MSstatsTMT` and are for quality control.
+
+```{r data visualisation, echo = FALSE}
+# Produces individual plots for the different proteins, each peptide shown in a different colour
+dataProcessPlotsTMT(
+  data=MSstatsTMT_processed,
+  type='ProfilePlot',
+  width = 7,
+  height = 7,
+  address = paste0(output_dir, "MSstatsTMT_")
+)
+
+# This produces a boxplot, of intensity by sample. Used as a basic way to check normalisation
+dataProcessPlotsTMT(
+  data=MSstatsTMT_processed,
+  type='QCPlot',
+  width = 7,
+  height = 7,
+  address = paste0(output_dir, "MSstatsTMT_")
+)
+```
+
+# Model-based comparison, and adjusted p-value
+
+```{r model based comparison, echo = FALSE}
+# Run the test
+test_MSstatsTMT <- groupComparisonTMT(
+  contrast.matrix = contrast_matrix,
+  data = MSstatsTMT_processed,
+  moderated = FALSE,
+  adj.method = "BH",
+  remove_norm_channel = TRUE,
+  remove_empty_channel = TRUE,
+  save_fitted_models = FALSE,
+  use_log_file = TRUE,
+  verbose = TRUE,
+  log_file_path = paste0(
+    output_dir,
+    "/logs/groupComparison_log_",
+    format(Sys.time(), "%Y_%m_%d_%H_%M_%S"),
+    ".txt"
+  )
+)
+
+# Extracting the comparison results
+MSstatsTMT_results <- test_MSstatsTMT$ComparisonResult
+
+# Checking for outliers, results in which there is an infinite fold-change
+outliers <- which(MSstatsTMT_results$log2FC == Inf | MSstatsTMT_results$log2FC == -Inf)
+paste("There are", length(outliers), "proteins found only in one condition, where the adjusted P value is zero, and fold-change is infinite")
+
+# Add column for up/downregulated or non-significant
+MSstatsTMT_results$Dif <- ifelse(MSstatsTMT_results$log2FC > 1 & MSstatsTMT_results$adj.pvalue < 0.05,
+  "Upregulated",
+  ifelse(MSstatsTMT_results$log2FC < -1 & MSstatsTMT_results$adj.pvalue < 0.05,
+    "Downregulated",
+    "Not significant"
+  )
+)
+
+# save the results
+save(MSstatsTMT_results, file = paste0(output_dir, "MSstatsTMT_results.rda"))
+write.csv(MSstatsTMT_results, file = paste0(output_dir, "MSstatsTMTResults.csv"))
 ```
