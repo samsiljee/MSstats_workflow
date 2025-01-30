@@ -74,7 +74,7 @@ contrast_matrix <- contrast_matrix[,-1]
 MSstatsTMT_input <- MSstatsTMT::PDtoMSstatsTMTFormat(
   input = PSMs,
   annotation = annotations,
-  which.proteinid = "Protein Accessions",
+  which.proteinid = "Protein Accessions", # Steph: Master Protein Accessions
   useNumProteinsColumn = TRUE,
   useUniquePeptide = TRUE,
   rmPSM_withfewMea_withinRun = TRUE,
@@ -168,7 +168,7 @@ dataProcessPlotsTMT(
 test_MSstatsTMT <- groupComparisonTMT(
   contrast.matrix = contrast_matrix,
   data = MSstatsTMT_processed,
-  moderated = FALSE,
+  moderated = FALSE, # Steph: TRUE
   adj.method = "BH",
   remove_norm_channel = TRUE,
   remove_empty_channel = TRUE,
