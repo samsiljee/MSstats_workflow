@@ -135,6 +135,37 @@ MSstatsTMT_processed <- MSstatsTMT::proteinSummarization(
 
 # Save the processed data
 save(MSstatsTMT_processed, file = paste0(output_dir, "TMT_processed.rda"))
+
+# Repeat without normalisation for normalisation plot
+# Process the input - without normalisation
+MSstatsTMT_processed_no_normalisation <- MSstatsTMT::proteinSummarization(
+  data = MSstatsTMT_input,
+  method = "msstats",
+  global_norm = FALSE,
+  reference_norm = FALSE,
+  remove_norm_channel = TRUE,
+  remove_empty_channel = TRUE,
+  MBimpute = TRUE,
+  maxQuantileforCensored = NULL,
+  use_log_file = TRUE,
+  append = FALSE,
+  verbose = TRUE,
+  log_file_path = paste0(
+    output_dir,
+    "/logs/proteinSummarization_log_",
+    format(Sys.time(), "%Y_%m_%d_%H_%M_%S"),
+    ".txt"
+  ),
+  msstats_log_path = paste0(
+    output_dir,
+    "/logs/MSstats_proteinSummarization_log_",
+    format(Sys.time(), "%Y_%m_%d_%H_%M_%S"),
+    ".txt"
+  )
+)
+
+# Save the processed data
+save(MSstatsTMT_processed_no_normalisation, file = paste0(output_dir, "TMT_processed_no_normalisation.rda"))
 ```
 
 # Data visualisation

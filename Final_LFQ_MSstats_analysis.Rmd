@@ -150,7 +150,39 @@ MSstats_processed <- dataProcess(
 )
 
 # Save the processed data
-save(MSstats_processed, file = paste0(output_dir, "processed.rda"))
+save(MSstats_processed, file = paste0(output_dir, "LFQ_processed.rda"))
+
+# Process the input - no normalisation for normalisation plot comparison
+MSstats_processed_no_normalisation <- dataProcess(
+  raw = MSstats_input,
+  logTrans = 2,
+  normalization = FALSE,
+  nameStandards = NULL,
+  featureSubset = "all",
+  remove_uninformative_feature_outlier = FALSE,
+  min_feature_count = 2,
+  n_top_feature = 3,
+  summaryMethod = "TMP",
+  equalFeatureVar = TRUE,
+  censoredInt = "NA",
+  MBimpute = TRUE,
+  remove50missing = FALSE,
+  fix_missing = NULL,
+  maxQuantileforCensored = 0.999,
+  use_log_file = TRUE,
+  append = FALSE,
+  verbose = TRUE,
+  log_file_path = paste0(
+    output_dir,
+    "/logs/dataProcess_log_",
+    format(Sys.time(), "%Y_%m_%d_%H_%M_%S"),
+    ".txt"
+  ),
+  numberOfCores = available_cores
+)
+
+# Save the processed data
+save(MSstats_processed_no_normalisation, file = paste0(output_dir, "LFQ_processed_no_normalisation.rda"))
 ```
 
 # Data visualisation
