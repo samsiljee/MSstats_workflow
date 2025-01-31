@@ -19,8 +19,8 @@ knitr::opts_chunk$set(echo = TRUE)
 # Set directories and annotations file name
 input_dir <- paste0(getwd(), "/LFQ_input/")
 output_dir <- paste0(getwd(), "/LFQ_output/")
-annotations_file <- "quick_run_annotations.tsv"
-contrast_matrix_file <- "quick_contrast_matrix.tsv"
+annotations_file <- "run_annotations.tsv"
+contrast_matrix_file <- "contrast_matrix.tsv"
 
 # Load packages
 library(MSstats) # Mass spec data statisitcal analysis
