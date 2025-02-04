@@ -82,7 +82,7 @@ row.names(contrast_matrix) <- contrast_matrix[,1]
 contrast_matrix <- contrast_matrix[,-1]
 
 # Format for `MSstatsTMT` input
-MSstatsTMTPTM_input <- MSstatsPTM::PDtoMSstatsPTMFormat(
+MSstatsPTM_input <- MSstatsPTM::PDtoMSstatsPTMFormat(
   input = PSMs_phos,
   annotation = annotations_phos,
   fasta_path = paste0(input_dir, FASTA_file),
@@ -128,14 +128,17 @@ This chunk processes the input data including normalisation, censored cutoff, cl
 
 ```{r data processing, echo = FALSE}
 # Process the input
-MSstatsTMT_processed <- MSstatsTMT::proteinSummarization(
-  data = MSstatsTMT_input,
+MSstatsPTM_processed <- MSstatsPTM::dataSummarizationPTM_TMT(
+  data = MSstatsPTM_input,
   method = "msstats",
   global_norm = TRUE,
+  global_norm.PTM = TRUE,
   reference_norm = TRUE,
+  reference_norm.PTM = TRUE,
   remove_norm_channel = TRUE,
   remove_empty_channel = TRUE,
   MBimpute = TRUE,
+  MBimpute.PTM = TRUE,
   maxQuantileforCensored = NULL,
   use_log_file = TRUE,
   append = FALSE,
@@ -145,48 +148,39 @@ MSstatsTMT_processed <- MSstatsTMT::proteinSummarization(
     "/logs/proteinSummarization_log_",
     format(Sys.time(), "%Y_%m_%d_%H_%M_%S"),
     ".txt"
-  ),
-  msstats_log_path = paste0(
-    output_dir,
-    "/logs/MSstats_proteinSummarization_log_",
-    format(Sys.time(), "%Y_%m_%d_%H_%M_%S"),
-    ".txt"
   )
 )
 
 # Save the processed data
-save(MSstatsTMT_processed, file = paste0(output_dir, "TMT_processed.rda"))
+save(MSstatsPTM_processed, file = paste0(output_dir, "PTM_processed.rda"))
 
 # Repeat without normalisation for normalisation plot
-# Process the input - without normalisation
-MSstatsTMT_processed_no_normalisation <- MSstatsTMT::proteinSummarization(
-  data = MSstatsTMT_input,
+# Process the input
+MSstatsPTM_processed_no_normalisation <- MSstatsPTM::dataSummarizationPTM_TMT(
+  data = MSstatsPTM_input,
   method = "msstats",
   global_norm = FALSE,
+  global_norm.PTM = FALSE,
   reference_norm = FALSE,
+  reference_norm.PTM = FALSE,
   remove_norm_channel = TRUE,
   remove_empty_channel = TRUE,
   MBimpute = TRUE,
+  MBimpute.PTM = TRUE,
   maxQuantileforCensored = NULL,
   use_log_file = TRUE,
   append = FALSE,
   verbose = TRUE,
   log_file_path = paste0(
     output_dir,
-    "/logs/proteinSummarization_log_",
-    format(Sys.time(), "%Y_%m_%d_%H_%M_%S"),
-    ".txt"
-  ),
-  msstats_log_path = paste0(
-    output_dir,
-    "/logs/MSstats_proteinSummarization_log_",
+    "/logs/proteinSummarization_log_no_normalisation_",
     format(Sys.time(), "%Y_%m_%d_%H_%M_%S"),
     ".txt"
   )
 )
 
 # Save the processed data
-save(MSstatsTMT_processed_no_normalisation, file = paste0(output_dir, "TMT_processed_no_normalisation.rda"))
+save(MSstatsPTM_processed_no_normalisation, file = paste0(output_dir, "PTM_processed_no_normalisation.rda"))
 ```
 
 # Data visualisation
