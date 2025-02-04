@@ -2,12 +2,14 @@
 output/*
 LFQ_output/*
 TMT_output/*
+TMT_phos_output/*
 *.log
 
 # All input
 input/*
 LFQ_input/*
 TMT_input/*
+TMT_phos_input/*
 
 # R project file
 *.Rproj
