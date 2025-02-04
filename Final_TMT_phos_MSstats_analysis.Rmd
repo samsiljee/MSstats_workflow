@@ -19,9 +19,11 @@ knitr::opts_chunk$set(echo = TRUE)
 # Set directories and annotations file name
 input_dir <- paste0(getwd(), "/TMT_phos_input/")
 output_dir <- paste0(getwd(), "/TMT_phos_output/")
-run_annotations_file <- "run_annotations.tsv"
+run_annotations_phos_file <- "run_annotations_phos.tsv"
+run_annotations_proteins_file <- "run_annotations_proteins.tsv"
 channel_annotations_file <- "channel_annotations.tsv"
 contrast_matrix_file <- "contrast_matrix.tsv"
+FASTA_file <- "Human_Swissprot_w_contaminants_eGFP_20250115.fasta"
 
 # Load packages
 library(MSstatsPTM) # Mass spec data statisitcal analysis
@@ -60,9 +62,17 @@ The data is imported, then formatted for `MSstatsTMT` using `PDtoMSstatsTMTForma
 PSMs_phos <- import_psm_data(paste0(input_dir, grep("Phospho", list.files(input_dir), value = TRUE)))
 PSMs_proteins <- import_psm_data(paste0(input_dir, grep("Phospho", list.files(input_dir), value = TRUE, invert = TRUE)))
 
+# Replace spaces with periods - MSstats expects "R-friendly headers" from PSM output
+colnames(PSMs_phos) <- colnames(PSMs_phos) %>% str_replace_all(" ", ".")
+colnames(PSMs_proteins) <- colnames(PSMs_proteins) %>% str_replace_all(" ", ".")
+
 # Load annotations file
-annotations <- full_join(
-  read.delim(paste0(input_dir, run_annotations_file), header = TRUE, stringsAsFactors = TRUE),
+annotations_phos <- full_join(
+  read.delim(paste0(input_dir, run_annotations_phos_file), header = TRUE, stringsAsFactors = TRUE),
+  read.delim(paste0(input_dir, channel_annotations_file), header = TRUE, stringsAsFactors = TRUE)
+)
+annotations_proteins <- full_join(
+  read.delim(paste0(input_dir, run_annotations_proteins_file), header = TRUE, stringsAsFactors = TRUE),
   read.delim(paste0(input_dir, channel_annotations_file), header = TRUE, stringsAsFactors = TRUE)
 )
 
@@ -72,34 +82,44 @@ row.names(contrast_matrix) <- contrast_matrix[,1]
 contrast_matrix <- contrast_matrix[,-1]
 
 # Format for `MSstatsTMT` input
-# MSstatsTMT_input <- MSstatsTMT::PDtoMSstatsTMTFormat(
-#   input = PSMs,
-#   annotation = annotations,
-#   which.proteinid = "Protein Accessions", # Steph: Master Protein Accessions
-#   useNumProteinsColumn = TRUE,
-#   useUniquePeptide = TRUE,
-#   rmPSM_withfewMea_withinRun = TRUE,
-#   rmProtein_with1Feature = FALSE,
-#   summaryforMultipleRows = sum,
-#   use_log_file = TRUE,
-#   append = FALSE,
-#   verbose = TRUE,
-#   log_file_path = paste0(
-#     output_dir,
-#     "/logs/PDtoMSstatsTMTFormat_log_",
-#     format(Sys.time(), "%Y_%m_%d_%H_%M_%S"),
-#     ".txt"
-#   )
-# )
+MSstatsTMTPTM_input <- MSstatsPTM::PDtoMSstatsPTMFormat(
+  input = PSMs_phos,
+  annotation = annotations_phos,
+  fasta_path = paste0(input_dir, FASTA_file),
+  protein_input = PSMs_proteins,
+  annotation_protein = annotations_proteins,
+  labeling_type = "TMT",
+  mod_id = "\\(Phospho\\)",
+  use_localization_cutoff = FALSE,
+  keep_all_mods = FALSE,
+  use_unmod_peptides = FALSE,
+  fasta_protein_name = "uniprot_iso",
+  localization_cutoff = 75,
+  remove_unlocalized_peptides = TRUE,
+  useNumProteinsColumn = FALSE,
+  useUniquePeptide = TRUE,
+  summaryforMultipleRows = max,
+  removeFewMeasurements = TRUE,
+  removeOxidationMpeptides = FALSE,
+  removeProtein_with1Peptide = FALSE,
+  which_quantification = "Precursor.Area",
+  which_proteinid = "Master.Protein.Accessions",
+  use_log_file = TRUE,
+  append = FALSE,
+  verbose = TRUE,
+  log_file_path = paste0(
+    output_dir,
+    "/logs/PDtoMSstatsPTMFormat_log_",
+    format(Sys.time(), "%Y_%m_%d_%H_%M_%S"),
+    ".txt"
+  )
+)
 
 # Briefly check input
-# head(MSstatsTMT_input)
-# 
-# # Count the number of proteins
-# paste("There are", (MSstatsTMT_input$ProteinName %>% unique() %>% length()), "proteins in this dataset")
-# 
-# # Save the prepared data
-# save(MSstatsTMT_input, file = paste0(output_dir, "TMT_preprocessed.rda"))
+head(MSstatsPTM_input)
+
+# Save the prepared data
+save(MSstatsPTM_input, file = paste0(output_dir, "PTM_preprocessed.rda"))
 ```
 
 # Data Processing
