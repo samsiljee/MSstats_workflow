@@ -223,11 +223,8 @@ test_MSstatsPTM <- groupComparisonPTM(
 )
 
 # Extracting the comparison results
-MSstatsPTM_results <- test_MSstatsPTM$ComparisonResult
-
-# Checking for outliers, results in which there is an infinite fold-change
-outliers <- which(MSstatsPTM_results$log2FC == Inf | MSstatsPTM_results$log2FC == -Inf)
-paste("There are", length(outliers), "proteins found only in one condition, where the adjusted P value is zero, and fold-change is infinite")
+MSstatsPTM_results <- test_MSstatsPTM$ADJUSTED.Model
+MSstatsPTM_raw_results <- test_MSstatsPTM$PTM.Model
 
 # Add column for up/downregulated or non-significant
 MSstatsPTM_results$Dif <- ifelse(MSstatsPTM_results$log2FC > 1 & MSstatsPTM_results$adj.pvalue < 0.05,
@@ -241,4 +238,6 @@ MSstatsPTM_results$Dif <- ifelse(MSstatsPTM_results$log2FC > 1 & MSstatsPTM_resu
 # save the results
 save(MSstatsPTM_results, file = paste0(output_dir, "MSstatsPTM_results.rda"))
 write.csv(MSstatsPTM_results, file = paste0(output_dir, "MSstatsPTMResults.csv"))
+save(MSstatsPTM_raw_results, file = paste0(output_dir, "MSstatsPTM_raw_results.rda"))
+write.csv(MSstatsPTM_raw_results, file = paste0(output_dir, "MSstatsPTMrawResults.csv"))
 ```
