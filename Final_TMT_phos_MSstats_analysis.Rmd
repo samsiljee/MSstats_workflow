@@ -212,9 +212,6 @@ test_MSstatsPTM <- groupComparisonPTM(
   contrast.matrix = contrast_matrix,
   moderated = FALSE, # Steph: TRUE
   adj.method = "BH",
-  remove_norm_channel = TRUE,
-  remove_empty_channel = TRUE,
-  save_fitted_models = FALSE,
   use_log_file = TRUE,
   verbose = TRUE,
   log_file_path = paste0(
