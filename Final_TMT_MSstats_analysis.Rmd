@@ -152,13 +152,13 @@ MSstatsTMT_processed_no_normalisation <- MSstatsTMT::proteinSummarization(
   verbose = TRUE,
   log_file_path = paste0(
     output_dir,
-    "/logs/proteinSummarization_log_",
+    "/logs/proteinSummarization_no_normalisation_log_",
     format(Sys.time(), "%Y_%m_%d_%H_%M_%S"),
     ".txt"
   ),
   msstats_log_path = paste0(
     output_dir,
-    "/logs/MSstats_proteinSummarization_log_",
+    "/logs/MSstats_proteinSummarization_no_normalisation_log_",
     format(Sys.time(), "%Y_%m_%d_%H_%M_%S"),
     ".txt"
   )
