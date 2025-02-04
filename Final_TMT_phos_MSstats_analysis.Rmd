@@ -189,21 +189,21 @@ These plots are from functions built-in to `MSstatsTMT` and are for quality cont
 
 ```{r data visualisation, echo = FALSE}
 # Produces individual plots for the different proteins, each peptide shown in a different colour
-dataProcessPlotsTMT(
-  data=MSstatsTMT_processed,
+dataProcessPlotsPTM(
+  data=MSstatsPTM_processed,
   type='ProfilePlot',
   width = 7,
   height = 7,
-  address = paste0(output_dir, "MSstatsTMT_")
+  address = paste0(output_dir, "MSstatsPTM_")
 )
 
 # This produces a boxplot, of intensity by sample. Used as a basic way to check normalisation
-dataProcessPlotsTMT(
-  data=MSstatsTMT_processed,
+dataProcessPlotsPTM(
+  data=MSstatsPTM_processed,
   type='QCPlot',
   width = 7,
   height = 7,
-  address = paste0(output_dir, "MSstatsTMT_")
+  address = paste0(output_dir, "MSstatsPTM_")
 )
 ```
 
