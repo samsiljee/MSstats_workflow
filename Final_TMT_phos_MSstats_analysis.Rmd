@@ -123,9 +123,7 @@ save(MSstatsPTM_input, file = paste0(output_dir, "PTM_preprocessed.rda"))
 ```
 
 # Data Processing
-
 This chunk processes the input data including normalisation, censored cutoff, cleaning, and protein-level summarization.
-
 ```{r data processing, echo = FALSE}
 # Process the input
 MSstatsPTM_processed <- MSstatsPTM::dataSummarizationPTM_TMT(
@@ -184,9 +182,7 @@ save(MSstatsPTM_processed_no_normalisation, file = paste0(output_dir, "PTM_proce
 ```
 
 # Data visualisation
-
-These plots are from functions built-in to `MSstatsTMT` and are for quality control.
-
+These plots are from functions built-in to `MSstatsPTM` and are for quality control.
 ```{r data visualisation, echo = FALSE}
 # Produces individual plots for the different proteins, each peptide shown in a different colour
 dataProcessPlotsPTM(
@@ -208,12 +204,12 @@ dataProcessPlotsPTM(
 ```
 
 # Model-based comparison, and adjusted p-value
-
 ```{r model based comparison, echo = FALSE}
 # Run the test
-test_MSstatsTMT <- groupComparisonTMT(
+test_MSstatsPTM <- groupComparisonPTM(
+  data = MSstatsPTM_processed,
+  data.type = "TMT",
   contrast.matrix = contrast_matrix,
-  data = MSstatsTMT_processed,
   moderated = FALSE, # Steph: TRUE
   adj.method = "BH",
   remove_norm_channel = TRUE,
@@ -230,22 +226,22 @@ test_MSstatsTMT <- groupComparisonTMT(
 )
 
 # Extracting the comparison results
-MSstatsTMT_results <- test_MSstatsTMT$ComparisonResult
+MSstatsPTM_results <- test_MSstatsPTM$ComparisonResult
 
 # Checking for outliers, results in which there is an infinite fold-change
-outliers <- which(MSstatsTMT_results$log2FC == Inf | MSstatsTMT_results$log2FC == -Inf)
+outliers <- which(MSstatsPTM_results$log2FC == Inf | MSstatsPTM_results$log2FC == -Inf)
 paste("There are", length(outliers), "proteins found only in one condition, where the adjusted P value is zero, and fold-change is infinite")
 
 # Add column for up/downregulated or non-significant
-MSstatsTMT_results$Dif <- ifelse(MSstatsTMT_results$log2FC > 1 & MSstatsTMT_results$adj.pvalue < 0.05,
+MSstatsPTM_results$Dif <- ifelse(MSstatsPTM_results$log2FC > 1 & MSstatsPTM_results$adj.pvalue < 0.05,
   "Upregulated",
-  ifelse(MSstatsTMT_results$log2FC < -1 & MSstatsTMT_results$adj.pvalue < 0.05,
+  ifelse(MSstatsPTM_results$log2FC < -1 & MSstatsPTM_results$adj.pvalue < 0.05,
     "Downregulated",
     "Not significant"
   )
 )
 
 # save the results
-save(MSstatsTMT_results, file = paste0(output_dir, "MSstatsTMT_results.rda"))
-write.csv(MSstatsTMT_results, file = paste0(output_dir, "MSstatsTMTResults.csv"))
+save(MSstatsPTM_results, file = paste0(output_dir, "MSstatsPTM_results.rda"))
+write.csv(MSstatsPTM_results, file = paste0(output_dir, "MSstatsPTMResults.csv"))
 ```
