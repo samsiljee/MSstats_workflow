@@ -1,7 +1,7 @@
 ---
 title: "Final_TMT_MSstats_analysis"
 author: "Sam Siljee"
-date: "2025-01-03"
+date: "2025-01-04"
 output: html_document
 ---
 
@@ -10,7 +10,7 @@ Written by: Sam Siljee
 copyright (c) - 2025 Sam Siljee
 
 # Introduction
-This script was used to run the analysis on my final LFQ proteomics data.
+This script was used to run the analysis on my final TMT proteomics data.
 
 # Setup
 ```{r setup, include=FALSE}
@@ -74,10 +74,10 @@ contrast_matrix <- contrast_matrix[,-1]
 MSstatsTMT_input <- MSstatsTMT::PDtoMSstatsTMTFormat(
   input = PSMs,
   annotation = annotations,
-  which.proteinid = "Protein Accessions", # Steph: Master Protein Accessions
+  which.proteinid = "Master Protein Accessions", # Default: Protein Accessions
   useNumProteinsColumn = TRUE,
   useUniquePeptide = TRUE,
-  rmPSM_withfewMea_withinRun = TRUE,
+  rmPSM_withfewMea_withinRun = FALSE, # Default: TRUE
   rmProtein_with1Feature = FALSE,
   summaryforMultipleRows = sum,
   use_log_file = TRUE,
@@ -173,23 +173,23 @@ save(MSstatsTMT_processed_no_normalisation, file = paste0(output_dir, "TMT_proce
 These plots are from functions built-in to `MSstatsTMT` and are for quality control.
 
 ```{r data visualisation, echo = FALSE}
-# Produces individual plots for the different proteins, each peptide shown in a different colour
-dataProcessPlotsTMT(
-  data=MSstatsTMT_processed,
-  type='ProfilePlot',
-  width = 7,
-  height = 7,
-  address = paste0(output_dir, "MSstatsTMT_")
-)
-
-# This produces a boxplot, of intensity by sample. Used as a basic way to check normalisation
-dataProcessPlotsTMT(
-  data=MSstatsTMT_processed,
-  type='QCPlot',
-  width = 7,
-  height = 7,
-  address = paste0(output_dir, "MSstatsTMT_")
-)
+# # Produces individual plots for the different proteins, each peptide shown in a different colour
+# dataProcessPlotsTMT(
+#   data=MSstatsTMT_processed,
+#   type='ProfilePlot',
+#   width = 7,
+#   height = 7,
+#   address = paste0(output_dir, "MSstatsTMT_")
+# )
+# 
+# # This produces a boxplot, of intensity by sample. Used as a basic way to check normalisation
+# dataProcessPlotsTMT(
+#   data=MSstatsTMT_processed,
+#   type='QCPlot',
+#   width = 7,
+#   height = 7,
+#   address = paste0(output_dir, "MSstatsTMT_")
+# )
 ```
 
 # Model-based comparison, and adjusted p-value
@@ -220,15 +220,6 @@ MSstatsTMT_results <- test_MSstatsTMT$ComparisonResult
 # Checking for outliers, results in which there is an infinite fold-change
 outliers <- which(MSstatsTMT_results$log2FC == Inf | MSstatsTMT_results$log2FC == -Inf)
 paste("There are", length(outliers), "proteins found only in one condition, where the adjusted P value is zero, and fold-change is infinite")
-
-# Add column for up/downregulated or non-significant
-MSstatsTMT_results$Dif <- ifelse(MSstatsTMT_results$log2FC > 1 & MSstatsTMT_results$adj.pvalue < 0.05,
-  "Upregulated",
-  ifelse(MSstatsTMT_results$log2FC < -1 & MSstatsTMT_results$adj.pvalue < 0.05,
-    "Downregulated",
-    "Not significant"
-  )
-)
 
 # save the results
 save(MSstatsTMT_results, file = paste0(output_dir, "MSstatsTMT_results.rda"))
