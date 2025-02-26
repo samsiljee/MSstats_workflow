@@ -186,23 +186,23 @@ save(MSstatsPTM_processed_no_normalisation, file = paste0(output_dir, "PTM_proce
 # Data visualisation
 These plots are from functions built-in to `MSstatsPTM` and are for quality control.
 ```{r data visualisation, echo = FALSE}
-# Produces individual plots for the different proteins, each peptide shown in a different colour
-dataProcessPlotsPTM(
-  data=MSstatsPTM_processed,
-  type='ProfilePlot',
-  width = 7,
-  height = 7,
-  address = paste0(output_dir, "MSstatsPTM_")
-)
-
-# This produces a boxplot, of intensity by sample. Used as a basic way to check normalisation
-dataProcessPlotsPTM(
-  data=MSstatsPTM_processed,
-  type='QCPlot',
-  width = 7,
-  height = 7,
-  address = paste0(output_dir, "MSstatsPTM_")
-)
+# # Produces individual plots for the different proteins, each peptide shown in a different colour
+# dataProcessPlotsPTM(
+#   data=MSstatsPTM_processed,
+#   type='ProfilePlot',
+#   width = 7,
+#   height = 7,
+#   address = paste0(output_dir, "MSstatsPTM_")
+# )
+# 
+# # This produces a boxplot, of intensity by sample. Used as a basic way to check normalisation
+# dataProcessPlotsPTM(
+#   data=MSstatsPTM_processed,
+#   type='QCPlot',
+#   width = 7,
+#   height = 7,
+#   address = paste0(output_dir, "MSstatsPTM_")
+# )
 ```
 
 # Model-based comparison, and adjusted p-value
@@ -242,4 +242,18 @@ save(MSstatsPTM_results, file = paste0(output_dir, "MSstatsPTM_results.rda"))
 write.csv(MSstatsPTM_results, file = paste0(output_dir, "MSstatsPTMResults.csv"))
 save(MSstatsPTM_raw_results, file = paste0(output_dir, "MSstatsPTM_raw_results.rda"))
 write.csv(MSstatsPTM_raw_results, file = paste0(output_dir, "MSstatsPTMrawResults.csv"))
+```
+
+# Session information
+Save file of session information
+```{r SessionInfo}
+writeLines(
+  capture.output(sessionInfo()),
+  paste0(
+    output_dir,
+    "logs/sessionInfo_",
+    format(Sys.time(), "%Y_%m_%d_%H_%M_%S"),
+    ".txt"
+    )
+  )
 ```

@@ -171,9 +171,7 @@ save(MSstatsTMT_processed_no_normalisation, file = paste0(output_dir, "TMT_proce
 ```
 
 # Data visualisation
-
 These plots are from functions built-in to `MSstatsTMT` and are for quality control.
-
 ```{r data visualisation, echo = FALSE}
 # # Produces individual plots for the different proteins, each peptide shown in a different colour
 # dataProcessPlotsTMT(
@@ -226,4 +224,18 @@ paste("There are", length(outliers), "proteins found only in one condition, wher
 # save the results
 save(MSstatsTMT_results, file = paste0(output_dir, "MSstatsTMT_results.rda"))
 write.csv(MSstatsTMT_results, file = paste0(output_dir, "MSstatsTMTResults.csv"))
+```
+
+# Session information
+Save file of session information
+```{r SessionInfo}
+writeLines(
+  capture.output(sessionInfo()),
+  paste0(
+    output_dir,
+    "logs/sessionInfo_",
+    format(Sys.time(), "%Y_%m_%d_%H_%M_%S"),
+    ".txt"
+    )
+  )
 ```
