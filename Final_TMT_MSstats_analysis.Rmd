@@ -16,6 +16,8 @@ This script was used to run the analysis on my final TMT proteomics data.
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
+set.seed(44)
+
 # Set directories and annotations file name
 input_dir <- paste0(getwd(), "/TMT_input/")
 output_dir <- paste0(getwd(), "/TMT_output/")

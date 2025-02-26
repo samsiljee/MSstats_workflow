@@ -16,6 +16,8 @@ This script was used to run the analysis on my final LFQ proteomics data.
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
+set.seed(44)
+
 # Set directories and annotations file name
 input_dir <- paste0(getwd(), "/LFQ_input/")
 output_dir <- paste0(getwd(), "/LFQ_output/")
