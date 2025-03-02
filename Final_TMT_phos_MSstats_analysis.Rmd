@@ -32,6 +32,7 @@ library(MSstatsPTM) # Mass spec data statisitcal analysis
 library(MSstatsConvert) # Prepare input data for MSstats
 library(vroom) # Fast data loading
 library(dplyr) # Data manipulation
+library(stringr) # String manipulation
 
 # Function to import the data given a data type key
 import_psm_data <- function(file_list) {
@@ -67,6 +68,10 @@ PSMs_proteins <- import_psm_data(paste0(input_dir, grep("Phospho", list.files(in
 # Replace spaces with periods - MSstats expects "R-friendly headers" from PSM output
 colnames(PSMs_phos) <- colnames(PSMs_phos) %>% str_replace_all(" ", ".")
 colnames(PSMs_proteins) <- colnames(PSMs_proteins) %>% str_replace_all(" ", ".")
+
+# Manually remove a PSM causing the function to crash. removing either will do, but the first one is the preferred because it's likely to be lower quality ("Excluded by method" in PD)
+PSMs_proteins <- filter(PSMs_proteins, !(PSMs.Peptide.ID != 205676 & Spectrum.File == "Mix_TMT_F1_2_dot_5ul.raw"))
+# PSMs_proteins <- filter(PSMs_proteins, !(PSMs.Peptide.ID == 210714 & Spectrum.File == "Mix_TMT_F1_2_dot_5ul.raw"))
 
 # Load annotations file
 annotations_phos <- full_join(
