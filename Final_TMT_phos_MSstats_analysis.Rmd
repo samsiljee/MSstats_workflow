@@ -70,7 +70,7 @@ colnames(PSMs_phos) <- colnames(PSMs_phos) %>% str_replace_all(" ", ".")
 colnames(PSMs_proteins) <- colnames(PSMs_proteins) %>% str_replace_all(" ", ".")
 
 # Manually remove a PSM causing the function to crash. removing either will do, but the first one is the preferred because it's likely to be lower quality ("Excluded by method" in PD)
-PSMs_proteins <- filter(PSMs_proteins, !(PSMs.Peptide.ID != 205676 & Spectrum.File == "Mix_TMT_F1_2_dot_5ul.raw"))
+PSMs_proteins <- filter(PSMs_proteins, !(PSMs.Peptide.ID == 205676 & Spectrum.File == "Mix_TMT_F1_2_dot_5ul.raw"))
 # PSMs_proteins <- filter(PSMs_proteins, !(PSMs.Peptide.ID == 210714 & Spectrum.File == "Mix_TMT_F1_2_dot_5ul.raw"))
 
 # Load annotations file
