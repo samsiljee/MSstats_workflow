@@ -20,11 +20,11 @@ set.seed(44)
 
 # Set directories and annotations file name
 input_dir <- paste0(getwd(), "/TMT_phos_input/")
-output_dir <- paste0(getwd(), "/TMT_phos_output/")
+output_dir <- paste0(getwd(), "/TMT_phos_output_subgroups/")
 run_annotations_phos_file <- "run_annotations_phos.tsv"
 run_annotations_proteins_file <- "run_annotations_proteins.tsv"
-channel_annotations_file <- "channel_annotations.tsv"
-contrast_matrix_file <- "contrast_matrix.tsv"
+channel_annotations_file <- "channel_annotations_subgroups.tsv"
+contrast_matrix_file <- "contrast_matrix_subgroups.tsv"
 FASTA_file <- "Human_Swissprot_w_contaminants_eGFP_20250115.fasta"
 
 # Load packages
@@ -87,6 +87,7 @@ annotations_proteins <- full_join(
 contrast_matrix <- read.delim(paste0(input_dir, contrast_matrix_file), header = TRUE)
 row.names(contrast_matrix) <- contrast_matrix[,1]
 contrast_matrix <- contrast_matrix[,-1]
+contrast_matrix <- as.matrix(contrast_matrix)
 
 # Format for `MSstatsTMT` input
 MSstatsPTM_input <- MSstatsPTM::PDtoMSstatsPTMFormat(
