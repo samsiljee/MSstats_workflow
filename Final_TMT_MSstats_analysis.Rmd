@@ -30,7 +30,10 @@ library(MSstatsTMT) # Mass spec data statisitcal analysis
 library(MSstatsWeightedSummary) # Used to weigh shared peptides for quantification
 library(vroom) # Fast data loading
 library(dplyr) # Data manipulation
+```
 
+# Functions
+```{r Functions, include=FALSE}
 # Function to import the data given a data type key
 import_psm_data <- function(input_dir, file_list) {
   # Filter files list to only include relevant files
@@ -50,6 +53,33 @@ import_psm_data <- function(input_dir, file_list) {
   # return combined data.frame
   return(dat)
 }
+
+# Function to split protein groups
+split_protein_groups <- function(PSMs_input) {
+  # Initialise dataframe
+  dat <- data.frame()
+  
+  # Loop through rows of input and split up proteins from groups if needed
+  for(i in 1:nrow(PSMs_input)){
+    # Extract current row
+    current_row <- PSMs_input[i,]
+    
+    if(grepl(current_row$`Protein Accessions`, pattern = ";")){ # If current row is a protein group, split it up
+      # Make list of proteins in the group
+      group_proteins <- current_row$`Protein Accessions` %>% str_split("; ") %>% unlist()
+      # Loop through proteins and add a row to the data frame for each
+      for(j in group_proteins) {
+        dat <- rbind(dat, mutate(current_row, `Protein Accessions` = j))
+      }
+      
+    } else { # If not a protein group just add to dataframe as-is
+      dat <- rbind(dat, current_row)
+    }
+  }
+  
+  # Return the dataframe
+  return(dat)
+}
 ```
 
 # Read in the data
@@ -61,8 +91,6 @@ The data is imported, then formatted for `MSstatsTMT` using `PDtoMSstatsTMTForma
 # Load PSM data data
 PSMs <- import_psm_data(input_dir, list.files(input_dir, full.names = TRUE))
 
-# Expand PSMs for protein groups as input for MSstatsWeightedSummary
-
 # Load annotations file
 annotations <- full_join(
   read.delim(paste0(input_dir, run_annotations_file), header = TRUE, stringsAsFactors = TRUE),
@@ -73,7 +101,28 @@ annotations <- full_join(
 contrast_matrix <- read.delim(paste0(input_dir, contrast_matrix_file), header = TRUE)
 row.names(contrast_matrix) <- contrast_matrix[,1]
 contrast_matrix <- contrast_matrix[,-1]
+```
 
+# Weighted preprocessing
+Preprocessing the TMT input using the shared peptide weighting method
+```{r Weighted input preprocessing}
+# Re-format the PSMs data to split up protein groups
+
+curve_pp_raw = unique(PSMs[, .(PeptideSequence = `Annotated Sequence`, ProteinName = `Protein Accessions`)])
+curve_pp = cSplit(curve_pp_raw, splitCols = "ProteinName", sep = "; ", direction = "long", drop = FALSE)
+curve_pp[, ProteinName := stringr::str_replace_all(ProteinName, "\\-1", "")]
+curve_pp_graph = createPeptideProteinGraph(curve_pp)
+```
+
+# Weighted processing
+Processing the TMT input using the shared peptide weighting method
+```{r Weighted input processing}
+
+```
+
+# Preprocessing
+Data preprocisseing using the original MSstatsTMT workflow
+```{r Input preprocessing}
 # Format for `MSstatsTMT` input
 MSstatsTMT_input <- MSstatsTMT::PDtoMSstatsTMTFormat(
   input = PSMs_weighted_summary,
@@ -106,9 +155,8 @@ save(MSstatsTMT_input, file = paste0(output_dir, "TMT_preprocessed.rda"))
 ```
 
 # Data Processing
-
 This chunk processes the input data including normalisation, censored cutoff, cleaning, and protein-level summarization.
-
+Using the original MSstatsTMT method
 ```{r data processing, echo = FALSE}
 # Process the input
 MSstatsTMT_processed <- MSstatsTMT::proteinSummarization(
