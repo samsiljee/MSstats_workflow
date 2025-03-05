@@ -6,6 +6,7 @@ TMT_phos_output/*
 LFQ_output_subgroups/*
 TMT_output_subgroups/*
 TMT_phos_output_subgroups/*
+unique_peptides_not_weighted/*
 *.log
 
 # All input
