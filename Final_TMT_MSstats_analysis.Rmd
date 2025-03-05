@@ -27,7 +27,7 @@ contrast_matrix_file <- "contrast_matrix.tsv"
 
 # Load packages
 library(MSstatsTMT) # Mass spec data statisitcal analysis
-library(MSstatsConvert) # Prepare input data for MSstats
+library(MSstatsWeightedSummary) # Used to weigh shared peptides for quantification
 library(vroom) # Fast data loading
 library(dplyr) # Data manipulation
 
@@ -61,6 +61,8 @@ The data is imported, then formatted for `MSstatsTMT` using `PDtoMSstatsTMTForma
 # Load PSM data data
 PSMs <- import_psm_data(input_dir, list.files(input_dir, full.names = TRUE))
 
+# Expand PSMs for protein groups as input for MSstatsWeightedSummary
+
 # Load annotations file
 annotations <- full_join(
   read.delim(paste0(input_dir, run_annotations_file), header = TRUE, stringsAsFactors = TRUE),
@@ -74,7 +76,7 @@ contrast_matrix <- contrast_matrix[,-1]
 
 # Format for `MSstatsTMT` input
 MSstatsTMT_input <- MSstatsTMT::PDtoMSstatsTMTFormat(
-  input = PSMs,
+  input = PSMs_weighted_summary,
   annotation = annotations,
   which.proteinid = "Master Protein Accessions", # Default: Protein Accessions
   useNumProteinsColumn = TRUE,
