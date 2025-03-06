@@ -82,7 +82,7 @@ contrast_matrix <- contrast_matrix[,-1]
 Preprocessing the TMT input using the shared peptide weighting method
 ```{r Weighted input preprocessing}
 # Re-format the PSMs data to split up protein groups
-PSMs <- separate_longer_delim(PSMs, cols = Protein.Accessions, delim = "; ") %>%
+MSstatsTMT_input <- separate_longer_delim(PSMs, cols = Protein.Accessions, delim = "; ") %>%
   # Split channel intensities from wide format to long format
   pivot_longer(
     cols = `Abundance:.126`:`Abundance:.135N`,
@@ -115,14 +115,52 @@ PSMs <- separate_longer_delim(PSMs, cols = Protein.Accessions, delim = "; ") %>%
     BioReplicate,
     Mixture,
     TechRepMixture
+  ) %>%
+  # Mutate soem columns to required type
+  mutate(
+    across(
+      c(
+        ProteinName,
+        Run,
+        Channel,
+        Condition,
+        BioReplicate,
+        Mixture,
+        TechRepMixture
+      ),
+      as.factor
+    ),
+    PSM = as.character(PSM)
   )
+  
+# Create graph of protein clusters
+pp_graph <- igraph::graph_from_data_frame(
+  unique(MSstatsTMT_input[,c("ProteinName", "PeptideSequence")]), directed = FALSE)
 
+# Add protein clusters
+MSstatsTMT_input <- addClusterMembership(MSstatsTMT_input, pp_graph)
+
+# Normalise
+MSstatsTMT_input <- normalizeSharedPeptides(MSstatsTMT_input)
 ```
 
 # Weighted processing
 Processing the TMT input using the shared peptide weighting method
 ```{r Weighted input processing}
-
+# Protein level summarisation
+MSstats_summarised <- getWeightedProteinSummary(
+  MSstatsTMT_input,
+  norm = "p_norm",
+  norm_parameter = 1,
+  weights_mode = "contributions",
+  tolerance = 0.1,
+  max_iter = 10,
+  initial_summary = "unique",
+  weights_penalty = FALSE,
+  weights_penalty_param = 0.1,
+  save_weights_history = FALSE,
+  save_convergence_history = FALSE
+)
 ```
 
 # Preprocessing
