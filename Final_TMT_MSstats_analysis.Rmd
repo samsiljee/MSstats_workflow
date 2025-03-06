@@ -30,6 +30,8 @@ library(MSstatsTMT) # Mass spec data statisitcal analysis
 library(MSstatsWeightedSummary) # Used to weigh shared peptides for quantification
 library(vroom) # Fast data loading
 library(dplyr) # Data manipulation
+library(tidyr) # Split column into multiple rows for weighted peptides input
+library(stringr) # Renaming PSM column names
 ```
 
 # Functions
@@ -53,43 +55,16 @@ import_psm_data <- function(input_dir, file_list) {
   # return combined data.frame
   return(dat)
 }
-
-# Function to split protein groups
-split_protein_groups <- function(PSMs_input) {
-  # Initialise dataframe
-  dat <- data.frame()
-  
-  # Loop through rows of input and split up proteins from groups if needed
-  for(i in 1:nrow(PSMs_input)){
-    # Extract current row
-    current_row <- PSMs_input[i,]
-    
-    if(grepl(current_row$`Protein Accessions`, pattern = ";")){ # If current row is a protein group, split it up
-      # Make list of proteins in the group
-      group_proteins <- current_row$`Protein Accessions` %>% str_split("; ") %>% unlist()
-      # Loop through proteins and add a row to the data frame for each
-      for(j in group_proteins) {
-        dat <- rbind(dat, mutate(current_row, `Protein Accessions` = j))
-      }
-      
-    } else { # If not a protein group just add to dataframe as-is
-      dat <- rbind(dat, current_row)
-    }
-  }
-  
-  # Return the dataframe
-  return(dat)
-}
 ```
 
 # Read in the data
 MS runs initially analysed in Proteome Discoverer 2.4, PSM files exported as text files for further processing here with `MSstatsTMT`.
 Annotation file manually created.
 The data is imported, then formatted for `MSstatsTMT` using `PDtoMSstatsTMTFormat`.
-
 ```{r data import}
 # Load PSM data data
 PSMs <- import_psm_data(input_dir, list.files(input_dir, full.names = TRUE))
+colnames(PSMs) <- colnames(PSMs) %>% str_replace_all(" ", ".")
 
 # Load annotations file
 annotations <- full_join(
@@ -107,11 +82,41 @@ contrast_matrix <- contrast_matrix[,-1]
 Preprocessing the TMT input using the shared peptide weighting method
 ```{r Weighted input preprocessing}
 # Re-format the PSMs data to split up protein groups
+PSMs <- separate_longer_delim(PSMs, cols = Protein.Accessions, delim = "; ") %>%
+  # Split channel intensities from wide format to long format
+  pivot_longer(
+    cols = `Abundance:.126`:`Abundance:.135N`,
+    names_to = "channel",
+    names_prefix = "Abundance:.",
+    values_to = "Intensity"
+  ) %>%
+  # Rename columns and add column to merge with annotations
+  mutate(
+    ProteinName = Protein.Accessions,
+    PeptideSequence = Annotated.Sequence,
+    PSM = PSMs.Peptide.ID,
+    key = paste0(Spectrum.File, channel)
+  ) %>%
+  # Merge with annotations
+  merge(
+    mutate(annotations, key = paste0(Run, Channel)),
+    by = "key"
+  ) %>%
+  # Select the columns as needed
+  select(
+    ProteinName,
+    PeptideSequence,
+    Charge,
+    PSM,
+    Run,
+    Channel,
+    Intensity,
+    Condition,
+    BioReplicate,
+    Mixture,
+    TechRepMixture
+  )
 
-curve_pp_raw = unique(PSMs[, .(PeptideSequence = `Annotated Sequence`, ProteinName = `Protein Accessions`)])
-curve_pp = cSplit(curve_pp_raw, splitCols = "ProteinName", sep = "; ", direction = "long", drop = FALSE)
-curve_pp[, ProteinName := stringr::str_replace_all(ProteinName, "\\-1", "")]
-curve_pp_graph = createPeptideProteinGraph(curve_pp)
 ```
 
 # Weighted processing
