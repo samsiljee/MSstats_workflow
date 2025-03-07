@@ -56,6 +56,82 @@ import_psm_data <- function(input_dir, file_list) {
   # return combined data.frame
   return(dat)
 }
+
+# Function to prepare PD data for MSstatsWeightedSummary
+PDtoMSstatsWeightedSummary <- function(PSMs, annotations) {
+  # Wrangle PSMs input
+  MSstatsTMT_input <- separate_longer_delim(PSMs, cols = Protein.Accessions, delim = "; ") %>%
+    # Split channel intensities from wide format to long format
+    pivot_longer(
+      cols = `Abundance:.126`:`Abundance:.135N`,
+      names_to = "channel",
+      names_prefix = "Abundance:.",
+      values_to = "Intensity"
+    ) %>%
+    # Rename columns and add column to merge with annotations
+    mutate(
+      ProteinName = Protein.Accessions,
+      PeptideSequence = Annotated.Sequence,
+      PSM = PSMs.Peptide.ID,
+      key = paste0(Spectrum.File, channel)
+    ) %>%
+    # Merge with annotations
+    merge(
+      mutate(annotations, key = paste0(Run, Channel)),
+      by = "key"
+    ) %>%
+    # Select the columns as needed
+    select(
+      ProteinName,
+      PeptideSequence,
+      Charge,
+      PSM,
+      Run,
+      Channel,
+      Intensity,
+      Condition,
+      BioReplicate,
+      Mixture,
+      TechRepMixture,
+      Fraction
+    ) %>%
+    # Mutate some columns to required type
+    mutate(
+      across(
+        c(
+          ProteinName,
+          Run,
+          Channel,
+          Condition,
+          BioReplicate,
+          Mixture,
+          TechRepMixture
+        ),
+        as.factor
+      ),
+      PSM = as.character(PSM),
+      MSstats_run = paste(Mixture, TechRepMixture, sep = "_")
+    ) %>%
+    # Convert to data.table for igraph etc. input
+    as.data.table()
+  
+  # Identify fractions with maximum average intensities
+  MSstatsTMT_input %>%
+    group_by(MSstats_run, PSM, Fraction) %>%
+    summarise(average_intensity = mean(Intensity, na.rm = TRUE)) %>%
+    arrange(PSM)
+
+  # Create graph of protein clusters
+  pp_graph <- createPeptideProteinGraph(MSstatsTMT_input)
+
+  # Normalise
+  MSstatsTMT_input <- normalizeSharedPeptides(MSstatsTMT_input)
+
+  # Add protein clusters
+  MSstatsTMT_input <- addClusterMembership(MSstatsTMT_input, pp_graph)
+
+  return(MSstatsTMT_input)
+}
 ```
 
 # Read in the data
@@ -75,75 +151,15 @@ annotations <- full_join(
 
 # Load contrast matrix file
 contrast_matrix <- read.delim(paste0(input_dir, contrast_matrix_file), header = TRUE)
-row.names(contrast_matrix) <- contrast_matrix[,1]
-contrast_matrix <- contrast_matrix[,-1]
+row.names(contrast_matrix) <- contrast_matrix[, 1]
+contrast_matrix <- contrast_matrix[, -1]
 ```
 
 # Weighted preprocessing
 Preprocessing the TMT input using the shared peptide weighting method
 ```{r Weighted input preprocessing}
 # Re-format the PSMs data to split up protein groups
-MSstatsTMT_input <- separate_longer_delim(PSMs, cols = Protein.Accessions, delim = "; ") %>%
-  # Split channel intensities from wide format to long format
-  pivot_longer(
-    cols = `Abundance:.126`:`Abundance:.135N`,
-    names_to = "channel",
-    names_prefix = "Abundance:.",
-    values_to = "Intensity"
-  ) %>%
-  # Rename columns and add column to merge with annotations
-  mutate(
-    ProteinName = Protein.Accessions,
-    PeptideSequence = Annotated.Sequence,
-    PSM = PSMs.Peptide.ID,
-    key = paste0(Spectrum.File, channel)
-  ) %>%
-  # Merge with annotations
-  merge(
-    mutate(annotations, key = paste0(Run, Channel)),
-    by = "key"
-  ) %>%
-  # Select the columns as needed
-  select(
-    ProteinName,
-    PeptideSequence,
-    Charge,
-    PSM,
-    Run,
-    Channel,
-    Intensity,
-    Condition,
-    BioReplicate,
-    Mixture,
-    TechRepMixture
-  ) %>%
-  # Mutate soem columns to required type
-  mutate(
-    across(
-      c(
-        ProteinName,
-        Run,
-        Channel,
-        Condition,
-        BioReplicate,
-        Mixture,
-        TechRepMixture
-      ),
-      as.factor
-    ),
-    PSM = as.character(PSM)
-  ) %>%
-  # Convert to data.table for igraph etc. input
-  as.data.table
-  
-# Create graph of protein clusters
-pp_graph <- createPeptideProteinGraph(MSstatsTMT_input)
-
-# Normalise
-MSstatsTMT_input <- normalizeSharedPeptides(MSstatsTMT_input)
-
-# Add protein clusters
-MSstatsTMT_input <- addClusterMembership(MSstatsTMT_input, pp_graph)
+MSstatsTMT_input <- PDtoMSstatsWeightedSummary(PSMs, annotations)
 ```
 
 # Weighted processing
@@ -170,7 +186,7 @@ Data preprocisseing using the original MSstatsTMT workflow
 ```{r Input preprocessing}
 # Format for `MSstatsTMT` input
 MSstatsTMT_input <- MSstatsTMT::PDtoMSstatsTMTFormat(
-  input = PSMs_weighted_summary,
+  input = PSMs,
   annotation = annotations,
   which.proteinid = "Master Protein Accessions", # Default: Protein Accessions
   useNumProteinsColumn = TRUE,
@@ -276,7 +292,7 @@ These plots are from functions built-in to `MSstatsTMT` and are for quality cont
 #   height = 7,
 #   address = paste0(output_dir, "MSstatsTMT_")
 # )
-# 
+#
 # # This produces a boxplot, of intensity by sample. Used as a basic way to check normalisation
 # dataProcessPlotsTMT(
 #   data=MSstatsTMT_processed,
@@ -331,6 +347,6 @@ writeLines(
     "logs/sessionInfo_",
     format(Sys.time(), "%Y_%m_%d_%H_%M_%S"),
     ".txt"
-    )
   )
+)
 ```
