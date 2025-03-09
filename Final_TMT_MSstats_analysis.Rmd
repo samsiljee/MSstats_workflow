@@ -23,7 +23,7 @@ input_dir <- paste0(getwd(), "/TMT_input/")
 output_dir <- paste0(getwd(), "/TMT_output/")
 run_annotations_file <- "run_annotations.tsv"
 channel_annotations_file <- "channel_annotations.tsv"
-contrast_matrix_file <- "contrast_matrix.tsv"
+contrast_matrix_file <- "contrast_matrix_subgroups.tsv"
 
 # Load packages
 library(MSstatsTMT) # Mass spec data statisitcal analysis
