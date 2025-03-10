@@ -60,19 +60,9 @@ import_psm_data <- function(input_dir, file_list) {
 
 weighted_PSM_prep <- function(PSMs) {
   PSMs <- separate_longer_delim(PSMs, cols = Protein.Accessions, delim = "; ") %>%
-    # Split channel intensities from wide format to long format
-    pivot_longer(
-      cols = `Abundance:.126`:`Abundance:.135N`,
-      names_to = "channel",
-      names_prefix = "Abundance:.",
-      values_to = "Intensity"
-    ) %>%
     # Rename columns and add column to merge with annotations
     mutate(
-      ProteinName = Protein.Accessions,
-      PeptideSequence = Annotated.Sequence,
-      PSM = paste(Annotated.Sequence, Charge, sep = "_"),
-      key = paste0(Spectrum.File, channel)
+      PSM = paste(Annotated.Sequence, Charge, sep = "_")
     )
   
   return(PSMs)
@@ -190,8 +180,8 @@ contrast_matrix <- contrast_matrix[, -1]
 # Weighted preprocessing
 Preprocessing the TMT input using the shared peptide weighting method
 ```{r Weighted input preprocessing}
-# Re-format the PSMs data to split up protein groups
-MSstatsTMT_input <- PDtoMSstatsWeightedSummary(PSMs, annotations)
+# # Re-format the PSMs data to split up protein groups
+# MSstatsTMT_input <- PDtoMSstatsWeightedSummary(PSMs, annotations)
 
 # New method to format the input
 MSstatsTMT_input <- MSstatsTMT::PDtoMSstatsTMTFormat(
