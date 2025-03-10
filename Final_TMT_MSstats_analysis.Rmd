@@ -22,8 +22,9 @@ set.seed(44)
 input_dir <- paste0(getwd(), "/TMT_input/")
 output_dir <- paste0(getwd(), "/TMT_output/")
 run_annotations_file <- "run_annotations.tsv"
-channel_annotations_file <- "channel_annotations.tsv"
+channel_annotations_file <- "channel_annotations_subgroups.tsv"
 contrast_matrix_file <- "contrast_matrix_subgroups.tsv"
+load_from_rda <- TRUE
 
 # Load packages
 library(MSstatsTMT) # Mass spec data statisitcal analysis
@@ -57,6 +58,26 @@ import_psm_data <- function(input_dir, file_list) {
   return(dat)
 }
 
+weighted_PSM_prep <- function(PSMs) {
+  PSMs <- separate_longer_delim(PSMs, cols = Protein.Accessions, delim = "; ") %>%
+    # Split channel intensities from wide format to long format
+    pivot_longer(
+      cols = `Abundance:.126`:`Abundance:.135N`,
+      names_to = "channel",
+      names_prefix = "Abundance:.",
+      values_to = "Intensity"
+    ) %>%
+    # Rename columns and add column to merge with annotations
+    mutate(
+      ProteinName = Protein.Accessions,
+      PeptideSequence = Annotated.Sequence,
+      PSM = paste(Annotated.Sequence, Charge, sep = "_"),
+      key = paste0(Spectrum.File, channel)
+    )
+  
+  return(PSMs)
+}
+
 # Function to prepare PD data for MSstatsWeightedSummary
 PDtoMSstatsWeightedSummary <- function(PSMs, annotations) {
   # Wrangle PSMs input
@@ -72,7 +93,7 @@ PDtoMSstatsWeightedSummary <- function(PSMs, annotations) {
     mutate(
       ProteinName = Protein.Accessions,
       PeptideSequence = Annotated.Sequence,
-      PSM = PSMs.Peptide.ID,
+      PSM = paste(Annotated.Sequence, Charge, sep = "_"),
       key = paste0(Spectrum.File, channel)
     ) %>%
     # Merge with annotations
@@ -80,27 +101,11 @@ PDtoMSstatsWeightedSummary <- function(PSMs, annotations) {
       mutate(annotations, key = paste0(Run, Channel)),
       by = "key"
     ) %>%
-    # Select the columns as needed
-    select(
-      ProteinName,
-      PeptideSequence,
-      Charge,
-      PSM,
-      Run,
-      Channel,
-      Intensity,
-      Condition,
-      BioReplicate,
-      Mixture,
-      TechRepMixture,
-      Fraction
-    ) %>%
     # Mutate some columns to required type
     mutate(
       across(
         c(
           ProteinName,
-          Run,
           Channel,
           Condition,
           BioReplicate,
@@ -110,16 +115,16 @@ PDtoMSstatsWeightedSummary <- function(PSMs, annotations) {
         as.factor
       ),
       PSM = as.character(PSM),
-      MSstats_run = paste(Mixture, TechRepMixture, sep = "_")
+      Run = paste(Mixture, TechRepMixture, sep = "_")
     ) %>%
     # Convert to data.table for igraph etc. input
     as.data.table()
-  
-  # Identify fractions with maximum average intensities
-  MSstatsTMT_input %>%
-    group_by(MSstats_run, PSM, Fraction) %>%
-    summarise(average_intensity = mean(Intensity, na.rm = TRUE)) %>%
-    arrange(PSM)
+
+  # # Identify fractions with maximum average intensities
+  # MSstatsTMT_input %>%
+  #   group_by(MSstats_run, PSM, Fraction) %>%
+  #   summarise(average_intensity = mean(Intensity, na.rm = TRUE)) %>%
+  #   arrange(PSM)
 
   # Create graph of protein clusters
   pp_graph <- createPeptideProteinGraph(MSstatsTMT_input)
@@ -127,9 +132,27 @@ PDtoMSstatsWeightedSummary <- function(PSMs, annotations) {
   # Normalise
   MSstatsTMT_input <- normalizeSharedPeptides(MSstatsTMT_input)
 
-  # Add protein clusters
+  # Add protein clusters and add back Intensity column
   MSstatsTMT_input <- addClusterMembership(MSstatsTMT_input, pp_graph)
 
+  # Select the columns as needed in the correct order
+  MSstatsTMT_input <- select(
+    MSstatsTMT_input,
+    ProteinName,
+    PeptideSequence,
+    Charge,
+    PSM,
+    Channel,
+    Intensity,
+    Run,
+    BioReplicate,
+    Condition,
+    Mixture,
+    TechRepMixture,
+    log2IntensityNormalized,
+    Cluster
+  )
+  
   return(MSstatsTMT_input)
 }
 ```
@@ -139,15 +162,24 @@ MS runs initially analysed in Proteome Discoverer 2.4, PSM files exported as tex
 Annotation file manually created.
 The data is imported, then formatted for `MSstatsTMT` using `PDtoMSstatsTMTFormat`.
 ```{r data import}
-# Load PSM data data
-PSMs <- import_psm_data(input_dir, list.files(input_dir, full.names = TRUE))
-colnames(PSMs) <- colnames(PSMs) %>% str_replace_all(" ", ".")
+if (load_from_rda) { # Load from .rda files
+  load(paste0(input_dir, "PSMs.rda"))
+  load(paste0(input_dir, "annotations.rda"))
+} else { # Load from .csv files
+  # Load PSM data data
+  PSMs <- import_psm_data(input_dir, list.files(input_dir, full.names = TRUE))
+  colnames(PSMs) <- colnames(PSMs) %>% str_replace_all(" ", ".")
+  # Save the PSMs data for faster future input
+  save(PSMs, file = paste0(input_dir, "PSMs.rda"))
 
-# Load annotations file
-annotations <- full_join(
-  read.delim(paste0(input_dir, run_annotations_file), header = TRUE, stringsAsFactors = TRUE),
-  read.delim(paste0(input_dir, channel_annotations_file), header = TRUE, stringsAsFactors = TRUE)
-)
+  # Load annotations file
+  annotations <- full_join(
+    read.delim(paste0(input_dir, run_annotations_file), header = TRUE, stringsAsFactors = TRUE),
+    read.delim(paste0(input_dir, channel_annotations_file), header = TRUE, stringsAsFactors = TRUE)
+  )
+  # Save the annotations data for faster future input
+  save(annotations, file = paste0(input_dir, "annotations.rda"))
+}
 
 # Load contrast matrix file
 contrast_matrix <- read.delim(paste0(input_dir, contrast_matrix_file), header = TRUE)
@@ -160,6 +192,30 @@ Preprocessing the TMT input using the shared peptide weighting method
 ```{r Weighted input preprocessing}
 # Re-format the PSMs data to split up protein groups
 MSstatsTMT_input <- PDtoMSstatsWeightedSummary(PSMs, annotations)
+
+# New method to format the input
+MSstatsTMT_input <- MSstatsTMT::PDtoMSstatsTMTFormat(
+  input = weighted_PSM_prep(PSMs),
+  annotation = annotations,
+  which.proteinid = "Protein Accessions", # Default: Protein Accessions
+  useNumProteinsColumn = TRUE,
+  useUniquePeptide = FALSE,
+  rmPSM_withfewMea_withinRun = FALSE, # Default: TRUE
+  rmProtein_with1Feature = FALSE,
+  summaryforMultipleRows = sum,
+  use_log_file = TRUE,
+  append = FALSE,
+  verbose = TRUE,
+  log_file_path = paste0(
+    output_dir,
+    "/logs/PDtoMSstatsTMTFormat_log_",
+    format(Sys.time(), "%Y_%m_%d_%H_%M_%S"),
+    ".txt"
+  )
+)
+
+# Save the prepared data
+save(MSstatsTMT_input, file = paste0(output_dir, "TMT_preprocessed_weighted.rda"))
 ```
 
 # Weighted processing
@@ -179,6 +235,12 @@ MSstats_summarised <- getWeightedProteinSummary(
   save_weights_history = FALSE,
   save_convergence_history = FALSE
 )
+
+# Format for group comparison input
+MSstatsTMT_processed <- makeMSstatsTMTInput(MSstats_summarised)
+
+# Save the processed data
+save(MSstatsTMT_processed, file = paste0(output_dir, "TMT_processed_weighted.rda"))
 ```
 
 # Preprocessing
