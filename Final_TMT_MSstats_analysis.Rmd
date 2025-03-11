@@ -58,90 +58,8 @@ import_psm_data <- function(input_dir, file_list) {
   return(dat)
 }
 
-weighted_PSM_prep <- function(PSMs) {
-  PSMs <- separate_longer_delim(PSMs, cols = Protein.Accessions, delim = "; ") %>%
-    # Rename columns and add column to merge with annotations
-    mutate(
-      PSM = paste(Annotated.Sequence, Charge, sep = "_")
-    )
-  
-  return(PSMs)
-}
-
 # Function to prepare PD data for MSstatsWeightedSummary
 PDtoMSstatsWeightedSummary <- function(PSMs, annotations) {
-  # Wrangle PSMs input
-  MSstatsTMT_input <- separate_longer_delim(PSMs, cols = Protein.Accessions, delim = "; ") %>%
-    # Split channel intensities from wide format to long format
-    pivot_longer(
-      cols = `Abundance:.126`:`Abundance:.135N`,
-      names_to = "channel",
-      names_prefix = "Abundance:.",
-      values_to = "Intensity"
-    ) %>%
-    # Rename columns and add column to merge with annotations
-    mutate(
-      ProteinName = Protein.Accessions,
-      PeptideSequence = Annotated.Sequence,
-      PSM = paste(Annotated.Sequence, Charge, sep = "_"),
-      key = paste0(Spectrum.File, channel)
-    ) %>%
-    # Merge with annotations
-    merge(
-      mutate(annotations, key = paste0(Run, Channel)),
-      by = "key"
-    ) %>%
-    # Mutate some columns to required type
-    mutate(
-      across(
-        c(
-          ProteinName,
-          Channel,
-          Condition,
-          BioReplicate,
-          Mixture,
-          TechRepMixture
-        ),
-        as.factor
-      ),
-      PSM = as.character(PSM),
-      Run = paste(Mixture, TechRepMixture, sep = "_")
-    ) %>%
-    # Convert to data.table for igraph etc. input
-    as.data.table()
-
-  # # Identify fractions with maximum average intensities
-  # MSstatsTMT_input %>%
-  #   group_by(MSstats_run, PSM, Fraction) %>%
-  #   summarise(average_intensity = mean(Intensity, na.rm = TRUE)) %>%
-  #   arrange(PSM)
-
-  # Create graph of protein clusters
-  pp_graph <- createPeptideProteinGraph(MSstatsTMT_input)
-
-  # Normalise
-  MSstatsTMT_input <- normalizeSharedPeptides(MSstatsTMT_input)
-
-  # Add protein clusters and add back Intensity column
-  MSstatsTMT_input <- addClusterMembership(MSstatsTMT_input, pp_graph)
-
-  # Select the columns as needed in the correct order
-  MSstatsTMT_input <- select(
-    MSstatsTMT_input,
-    ProteinName,
-    PeptideSequence,
-    Charge,
-    PSM,
-    Channel,
-    Intensity,
-    Run,
-    BioReplicate,
-    Condition,
-    Mixture,
-    TechRepMixture,
-    log2IntensityNormalized,
-    Cluster
-  )
   
   return(MSstatsTMT_input)
 }
@@ -180,19 +98,41 @@ contrast_matrix <- contrast_matrix[, -1]
 # Weighted preprocessing
 Preprocessing the TMT input using the shared peptide weighting method
 ```{r Weighted input preprocessing}
-# # Re-format the PSMs data to split up protein groups
-# MSstatsTMT_input <- PDtoMSstatsWeightedSummary(PSMs, annotations)
+## Full peptide-protein graph
+# Get list of all protein.peptide combos
+peptide_proteins <- unique(as.data.table(PSMs)[, .(PeptideSequence = Annotated.Sequence, ProteinName = Protein.Accessions)])
+# Separate out protein groups into individual rows
+peptide_proteins <- separate_longer_delim(peptide_proteins, cols = ProteinName, delim = "; ") %>%
+  mutate(ProteinName = str_replace_all(ProteinName, "\\-1", "")) %>%
+  as.data.table()
+# Make the graph
+peptide_proteins_graph <- createPeptideProteinGraph(peptide_proteins)
 
-# New method to format the input
-MSstatsTMT_input <- MSstatsTMT::PDtoMSstatsTMTFormat(
-  input = weighted_PSM_prep(PSMs),
-  annotation = annotations,
-  which.proteinid = "Protein Accessions", # Default: Protein Accessions
-  useNumProteinsColumn = TRUE,
+# Cluster identification
+peptide_proteins <- addClusterMembership(peptide_proteins, peptide_proteins_graph)
+# Recombine with PSMs to make full input
+all_proteins_input <- merge(
+  as.data.table(PSMs),
+  peptide_proteins,
+  by.x = "Annotated.Sequence",
+  by.y = "PeptideSequence",
+  allow.cartesian = T,
+  all.x = T,
+  all.y = T
+)
+# Remove the protein accessions columns
+all_proteins_input <- subset(all_proteins_input, select = -c(Protein.Accessions, Master.Protein.Accessions)) %>% as.data.frame()
+
+# Filtering and pre-processing
+MSstatsTMT_input = MSstatsTMT::PDtoMSstatsTMTFormat(
+  all_proteins_input,
+  annotations,
+  which.proteinid = "ProteinName",
+  useNumProteinsColumn = FALSE,
   useUniquePeptide = FALSE,
-  rmPSM_withfewMea_withinRun = FALSE, # Default: TRUE
-  rmProtein_with1Feature = FALSE,
-  summaryforMultipleRows = sum,
+  rmPSM_withfewMea_withinRun = TRUE,
+  rmProtein_with1Feature = TRUE,
+  summaryforMultipleRows = max,
   use_log_file = TRUE,
   append = FALSE,
   verbose = TRUE,
@@ -203,6 +143,45 @@ MSstatsTMT_input <- MSstatsTMT::PDtoMSstatsTMTFormat(
     ".txt"
   )
 )
+
+MSstatsTMT_input = as.data.table(MSstatsTMT_input)
+
+rm(PSMs, peptide_proteins_graph, peptide_proteins, all_proteins_input)
+gc()
+
+# Process isoforms ---
+## onePot
+MSstatsTMT_input[, log2Intensity := log(Intensity, 2)]
+onepot_graph_procd = createPeptideProteinGraph(MSstatsTMT_input)
+MSstatsTMT_input = addClusterMembership(MSstatsTMT_input, onepot_graph_procd)
+MSstatsTMT_input_iso = processIsoforms(MSstatsTMT_input, T, T, F)
+
+# Normalization ----
+MSstatsTMT_input_iso[, Intensity := 2 ^ log2Intensity]
+MSstatsTMT_input_iso = normalizeSharedPeptides(MSstatsTMT_input_iso)
+MSstatsTMT_input_iso_graph = createPeptideProteinGraph(MSstatsTMT_input_iso)
+MSstatsTMT_input_iso = addClusterMembership(MSstatsTMT_input_iso, MSstatsTMT_input_iso_graph)
+rm(MSstatsTMT_input_iso_graph)
+
+# Cluster statistics ----
+MSstatsTMT_input_iso = getClusterStatistics(MSstatsTMT_input_iso, TRUE)
+
+# Make input for next steps
+onepot_int_cls_tbl = MSstatsTMT_input_iso
+rm(PSMs, annotations, onepot_graph_procd, MSstatsTMT_input, MSstatsTMT_input_iso)
+
+# Protein cluster processing and descriptive statistics ----
+onepot_int_cls_each_uni = onepot_int_cls_tbl[(HasUnique)]
+onepot_int_cls_each_uni[, IsUnique := uniqueN(ProteinName) == 1, by = "PSM"]
+onepot_int_cls_each_uni[, NumProteins := uniqueN(ProteinName), by = "Cluster"]
+onepot_int_cls_each_uni[, HasUnique := any(IsUnique), by = "ProteinName"]
+onepot_int_cls_each_uni = onepot_int_cls_each_uni[(HasUnique)]
+onepot_int_cls_each_uni[, IsUnique := uniqueN(ProteinName) == 1, by = "PSM"]
+onepot_int_cls_each_uni[, NumProteins := uniqueN(ProteinName), by = "Cluster"]
+
+
+onepot_split = split(onepot_int_cls_each_uni[NumProteins > 1], onepot_int_cls_each_uni[NumProteins > 1, Cluster])
+rm(onepot_int_cls_each_uni, onepot_int_cls_tbl)
 
 # Save the prepared data
 save(MSstatsTMT_input, file = paste0(output_dir, "TMT_preprocessed_weighted.rda"))
