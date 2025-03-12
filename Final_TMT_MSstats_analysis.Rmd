@@ -96,7 +96,8 @@ contrast_matrix <- contrast_matrix[, -1]
 ```
 
 # Weighted preprocessing
-Preprocessing the TMT input using the shared peptide weighting method
+Preprocessing the TMT input using the shared peptide weighting method - based on the MWS reproduction github page:
+https://github.com/mstaniak/MWS_reproduction/blob/main/05_tpp_onepot_data_preparation.R
 ```{r Weighted input preprocessing}
 ## Full peptide-protein graph
 # Get list of all protein.peptide combos
@@ -146,14 +147,10 @@ MSstatsTMT_input = MSstatsTMT::PDtoMSstatsTMTFormat(
 
 MSstatsTMT_input = as.data.table(MSstatsTMT_input)
 
-rm(PSMs, peptide_proteins_graph, peptide_proteins, all_proteins_input)
-gc()
-
-# Process isoforms ---
-## onePot
+# Process isoforms
 MSstatsTMT_input[, log2Intensity := log(Intensity, 2)]
-onepot_graph_procd = createPeptideProteinGraph(MSstatsTMT_input)
-MSstatsTMT_input = addClusterMembership(MSstatsTMT_input, onepot_graph_procd)
+processed_input_graph = createPeptideProteinGraph(MSstatsTMT_input)
+MSstatsTMT_input = addClusterMembership(MSstatsTMT_input, processed_input_graph)
 MSstatsTMT_input_iso = processIsoforms(MSstatsTMT_input, T, T, F)
 
 # Normalization ----
@@ -161,30 +158,24 @@ MSstatsTMT_input_iso[, Intensity := 2 ^ log2Intensity]
 MSstatsTMT_input_iso = normalizeSharedPeptides(MSstatsTMT_input_iso)
 MSstatsTMT_input_iso_graph = createPeptideProteinGraph(MSstatsTMT_input_iso)
 MSstatsTMT_input_iso = addClusterMembership(MSstatsTMT_input_iso, MSstatsTMT_input_iso_graph)
-rm(MSstatsTMT_input_iso_graph)
 
 # Cluster statistics ----
 MSstatsTMT_input_iso = getClusterStatistics(MSstatsTMT_input_iso, TRUE)
 
 # Make input for next steps
-onepot_int_cls_tbl = MSstatsTMT_input_iso
-rm(PSMs, annotations, onepot_graph_procd, MSstatsTMT_input, MSstatsTMT_input_iso)
+MSstatsTMT_input_tbl = MSstatsTMT_input_iso
 
 # Protein cluster processing and descriptive statistics ----
-onepot_int_cls_each_uni = onepot_int_cls_tbl[(HasUnique)]
-onepot_int_cls_each_uni[, IsUnique := uniqueN(ProteinName) == 1, by = "PSM"]
-onepot_int_cls_each_uni[, NumProteins := uniqueN(ProteinName), by = "Cluster"]
-onepot_int_cls_each_uni[, HasUnique := any(IsUnique), by = "ProteinName"]
-onepot_int_cls_each_uni = onepot_int_cls_each_uni[(HasUnique)]
-onepot_int_cls_each_uni[, IsUnique := uniqueN(ProteinName) == 1, by = "PSM"]
-onepot_int_cls_each_uni[, NumProteins := uniqueN(ProteinName), by = "Cluster"]
-
-
-onepot_split = split(onepot_int_cls_each_uni[NumProteins > 1], onepot_int_cls_each_uni[NumProteins > 1, Cluster])
-rm(onepot_int_cls_each_uni, onepot_int_cls_tbl)
+MSstatsTMT_input_each_uni = MSstatsTMT_input_tbl[(HasUnique)]
+MSstatsTMT_input_each_uni[, IsUnique := uniqueN(ProteinName) == 1, by = "PSM"]
+MSstatsTMT_input_each_uni[, NumProteins := uniqueN(ProteinName), by = "Cluster"]
+MSstatsTMT_input_each_uni[, HasUnique := any(IsUnique), by = "ProteinName"]
+MSstatsTMT_input_each_uni = MSstatsTMT_input_each_uni[(HasUnique)]
+MSstatsTMT_input_each_uni[, IsUnique := uniqueN(ProteinName) == 1, by = "PSM"]
+MSstatsTMT_input_each_uni[, NumProteins := uniqueN(ProteinName), by = "Cluster"]
 
 # Save the prepared data
-save(MSstatsTMT_input, file = paste0(output_dir, "TMT_preprocessed_weighted.rda"))
+save(MSstatsTMT_input_each_uni, file = paste0(output_dir, "TMT_preprocessed_weighted.rda"))
 ```
 
 # Weighted processing
@@ -192,7 +183,7 @@ Processing the TMT input using the shared peptide weighting method
 ```{r Weighted input processing}
 # Protein level summarisation
 MSstats_summarised <- getWeightedProteinSummary(
-  MSstatsTMT_input,
+  MSstatsTMT_input_iso,
   norm = "p_norm",
   norm_parameter = 1,
   weights_mode = "contributions",
@@ -205,7 +196,7 @@ MSstats_summarised <- getWeightedProteinSummary(
   save_convergence_history = FALSE
 )
 
-# Format for group comparison input
+ # Format for group comparison input
 MSstatsTMT_processed <- makeMSstatsTMTInput(MSstats_summarised)
 
 # Save the processed data
