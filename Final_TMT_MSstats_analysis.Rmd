@@ -34,6 +34,7 @@ library(dplyr) # Data manipulation
 library(tidyr) # Split column into multiple rows for weighted peptides input
 library(stringr) # Renaming PSM column names
 library(data.table) # Convert data.frame to data.table for weighted peptide input
+library(splitstackshape) # Split up uique protein names for weighted input
 ```
 
 # Functions
