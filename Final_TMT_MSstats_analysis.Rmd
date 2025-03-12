@@ -165,7 +165,7 @@ Preprocessing the TMT input using the shared peptide weighting method - based on
 https://github.com/mstaniak/MWS_reproduction/blob/main/05_tpp_onepot_data_preparation.R
 ```{r Weighted input preprocessing}
 # Process using weigthing for unique peptides using function derived from example code sent by Mateusz Staniak
-MSstatsTMT_input <- PDtoMSstatsWeightedSummary(PSMs[1:100, ], annotations)
+MSstatsTMT_input <- PDtoMSstatsWeightedSummary(PSMs, annotations)
 
 # Save the prepared data
 save(MSstatsTMT_input, file = paste0(output_dir, "TMT_preprocessed_weighted.rda"))
