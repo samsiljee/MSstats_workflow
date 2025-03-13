@@ -58,65 +58,6 @@ import_psm_data <- function(input_dir, file_list) {
   # return combined data.frame
   return(dat)
 }
-
-# Function to prepare PD data for MSstatsWeightedSummary
-PDtoMSstatsWeightedSummary <- function(psms, annotations) {
-  # Full peptide-protein graphs ----
-  psms <- as.data.table(psms)
-
-  # ## onePot
-  pp_orig <- unique(psms[, .(PeptideSequence = `Annotated.Sequence`, ProteinName = `Protein.Accessions`)])
-  pp <- cSplit(pp_orig, sep = "; ", direction = "long", drop = FALSE, splitCols = "ProteinName")
-  pp[, ProteinName := stringr::str_replace_all(ProteinName, "\\-1", "")]
-  pp_graph <- createPeptideProteinGraph(pp)
-  # # Cluster identification ----
-  # ## onePot
-  pp <- addClusterMembership(pp, pp_graph)
-  input_all_prots <- merge(psms, pp, by.x = "Annotated.Sequence", by.y = "PeptideSequence", allow.cartesian = T, all.x = T, all.y = T)
-  input_all_prots[, `Master.Protein.Accessions` := NULL]
-  input_all_prots[, `Protein.Accessions` := NULL]
-  # # MSstatsTMT pre-processing ----
-  ## onePot
-  procd <- MSstatsTMT::PDtoMSstatsTMTFormat(input_all_prots, annotations,
-    which.proteinid = "ProteinName",
-    useNumProteinsColumn = FALSE,
-    useUniquePeptide = FALSE,
-    rmPSM_withfewMea_withinRun = FALSE,
-    rmProtein_with1Feature = FALSE,
-    summaryforMultipleRows = max,
-    use_log_file = FALSE,
-    append = FALSE,
-    verbose = TRUE
-  )
-
-  gc()
-
-  procd <- as.data.table(procd)
-  # Process isoforms ---
-  # ## onePot
-  procd[, log2Intensity := log(Intensity, 2)]
-  graph_procd <- createPeptideProteinGraph(procd)
-  procd <- addClusterMembership(procd, graph_procd)
-  procd[, IsUnique := uniqueN(ProteinName) == 1, by = "PSM"]
-
-  procd_merge_single_identical <- processIsoforms(procd, T, T, F)
-  procd_merge_single_identical[, IsUnique := uniqueN(ProteinName) == 1, by = "PSM"]
-
-  # Optional steps:
-  # merging or filtering isoforms if there is not enough feature-level information
-  procd_iso <- processIsoforms(procd, T, T, F)
-  # Normalization (feature level, median-based)
-  procd_iso[, Intensity := 2^log2Intensity]
-  procd_iso <- normalizeSharedPeptides(procd_iso)
-  procd_iso_graph <- createPeptideProteinGraph(procd_iso)
-  procd_iso <- addClusterMembership(procd_iso, procd_iso_graph)
-  # Cluster statistics
-  procd_iso <- getClusterStatistics(procd_iso, TRUE)
-
-  gc()
-
-  return(procd_iso)
-}
 ```
 
 # Read in the data
@@ -154,7 +95,72 @@ Preprocessing the TMT input using the shared peptide weighting method - based on
 https://github.com/mstaniak/MWS_reproduction/blob/main/05_tpp_onepot_data_preparation.R
 ```{r Weighted input preprocessing}
 # Process using weigthing for unique peptides using function derived from example code sent by Mateusz Staniak
-MSstatsTMT_input <- PDtoMSstatsWeightedSummary(PSMs, annotations)
+
+# Full peptide-protein graphs ----
+psms <- as.data.table(PSMs)
+pp_orig <- unique(psms[, .(PeptideSequence = `Annotated.Sequence`, ProteinName = `Protein.Accessions`)])
+pp <- cSplit(pp_orig, sep = "; ", direction = "long", drop = FALSE, splitCols = "ProteinName")
+pp[, ProteinName := stringr::str_replace_all(ProteinName, "\\-1", "")]
+pp_graph <- createPeptideProteinGraph(pp)
+
+rm(pp_orig)
+gc()
+
+# # Cluster identification ----
+pp <- addClusterMembership(pp, pp_graph)
+input_all_prots <- merge(psms, pp, by.x = "Annotated.Sequence", by.y = "PeptideSequence", allow.cartesian = T, all.x = T, all.y = T)
+input_all_prots[, `Master.Protein.Accessions` := NULL]
+input_all_prots[, `Protein.Accessions` := NULL]
+
+rm(pp, pp_graph, psms)
+gc()
+
+# # MSstatsTMT pre-processing ----
+procd <- MSstatsTMT::PDtoMSstatsTMTFormat(input_all_prots, annotations,
+  which.proteinid = "ProteinName",
+  useNumProteinsColumn = FALSE,
+  useUniquePeptide = FALSE,
+  rmPSM_withfewMea_withinRun = FALSE,
+  rmProtein_with1Feature = FALSE,
+  summaryforMultipleRows = max,
+  use_log_file = FALSE,
+  append = FALSE,
+  verbose = TRUE
+)
+
+rm(input_all_prots)
+gc()
+
+procd <- as.data.table(procd)
+# Process isoforms ---
+# ## onePot
+procd[, log2Intensity := log(Intensity, 2)]
+graph_procd <- createPeptideProteinGraph(procd)
+procd <- addClusterMembership(procd, graph_procd)
+procd[, IsUnique := uniqueN(ProteinName) == 1, by = "PSM"]
+
+# procd_merge_single_identical <- processIsoforms(procd, T, T, F)
+# procd_merge_single_identical[, IsUnique := uniqueN(ProteinName) == 1, by = "PSM"]
+
+# Optional steps:
+# merging or filtering isoforms if there is not enough feature-level information
+procd_iso <- processIsoforms(procd, T, T, F)
+
+rm(procd, graph_procd)
+gc()
+
+# Normalization (feature level, median-based)
+procd_iso[, Intensity := 2^log2Intensity]
+procd_iso <- normalizeSharedPeptides(procd_iso)
+procd_iso_graph <- createPeptideProteinGraph(procd_iso)
+procd_iso <- addClusterMembership(procd_iso, procd_iso_graph)
+# Cluster statistics
+procd_iso <- getClusterStatistics(procd_iso, TRUE)
+
+rm(procd_iso_graph)
+gc()
+
+MSstatsTMT_input <- procd_iso
 
 # Save the prepared data
 save(MSstatsTMT_input, file = paste0(output_dir, "TMT_preprocessed_weighted.rda"))
