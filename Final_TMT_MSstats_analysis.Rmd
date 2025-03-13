@@ -88,6 +88,9 @@ PDtoMSstatsWeightedSummary <- function(psms, annotations) {
     append = FALSE,
     verbose = TRUE
   )
+
+  gc()
+
   procd <- as.data.table(procd)
   # Process isoforms ---
   # ## onePot
@@ -96,25 +99,8 @@ PDtoMSstatsWeightedSummary <- function(psms, annotations) {
   procd <- addClusterMembership(procd, graph_procd)
   procd[, IsUnique := uniqueN(ProteinName) == 1, by = "PSM"]
 
-  ggplot(
-    procd,
-    aes(x = Channel, y = log2Intensity, group = PSM, color = IsUnique)
-  ) +
-    geom_line() +
-    theme_bw() +
-    facet_grid(~ProteinName) +
-    theme_bw()
-
   procd_merge_single_identical <- processIsoforms(procd, T, T, F)
   procd_merge_single_identical[, IsUnique := uniqueN(ProteinName) == 1, by = "PSM"]
-  ggplot(
-    procd_merge_single_identical,
-    aes(x = Channel, y = log2Intensity, group = PSM, color = IsUnique)
-  ) +
-    geom_line() +
-    theme_bw() +
-    facet_grid(~ProteinName) +
-    theme_bw()
 
   # Optional steps:
   # merging or filtering isoforms if there is not enough feature-level information
@@ -126,6 +112,8 @@ PDtoMSstatsWeightedSummary <- function(psms, annotations) {
   procd_iso <- addClusterMembership(procd_iso, procd_iso_graph)
   # Cluster statistics
   procd_iso <- getClusterStatistics(procd_iso, TRUE)
+
+  gc()
 
   return(procd_iso)
 }
