@@ -58,6 +58,16 @@ import_psm_data <- function(input_dir, file_list) {
   # return combined data.frame
   return(dat)
 }
+
+# Function to select highest fraction
+filter_highest_fraction <- function(PSMs) {
+  # Add index column and filter for selected rows
+  dat <- mutate(PSMs, index = 1:nrow(PSMs))
+  
+  # Summarise and get list of indexes of maximum
+  
+  # Return PSM list filtered by top indexes
+}
 ```
 
 # Read in the data
