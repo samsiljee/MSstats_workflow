@@ -206,10 +206,10 @@ Processing the TMT input using the shared peptide weighting method
 # index_count <- 0
 
 # Make a list of cluster exclusions
-cluster_exclusion_list <- c(8, 12, 18)
-crash_exclusion_list <- c(1, 22)
+stop_exclusion_list <- c(8, 12, 18, 24, 25, 30)
+crash_exclusion_list <- c(1, 22, 32)
 
-indexes <- unique(MSstatsTMT_input$Cluster)[!unique(MSstatsTMT_input$Cluster) %in% 1:max(c(cluster_exclusion_list, crash_exclusion_list))]
+indexes <- unique(MSstatsTMT_input$Cluster)[!unique(MSstatsTMT_input$Cluster) %in% 1:max(c(stop_exclusion_list, crash_exclusion_list))]
 
 for(i in indexes) {
   print(paste("Now testing cluster:", i))
