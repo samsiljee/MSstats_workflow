@@ -17,6 +17,7 @@ TMT_phos_input/*
 
 # R project file
 *.Rproj
+MSstats_workflow.Rproj
 
 # History files
 .Rhistory
