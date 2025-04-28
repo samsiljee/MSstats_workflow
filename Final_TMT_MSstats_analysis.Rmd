@@ -179,58 +179,9 @@ save(MSstatsTMT_input, file = paste0(output_dir, "TMT_preprocessed_weighted.rda"
 # Weighted processing
 Processing the TMT input using the shared peptide weighting method
 ```{r Weighted input processing}
-# # Get cluster sizes
-# cluster_sizes <- MSstatsTMT_input %>%
-#   group_by(Cluster) %>%
-#   summarise(Cluster_count = n())
-# 
-# # Initiate blank index
-# cluster_iteration_index <- numeric()
-# 
-# # Loop through and select a cluster to use as an example for each one
-# for(i in sort(unique(cluster_sizes$Cluster_count))) {
-#   cluster_iteration_index <- c(
-#     cluster_iteration_index,
-#     as.numeric(dplyr::filter(cluster_sizes, Cluster_count == i)[1,1])
-#   )
-# }
-# 
-# # Manually change some clusters not functioning
-# cluster_iteration_index[cluster_iteration_index == 420] <- 495
-# cluster_iteration_index[cluster_iteration_index == 772] <- 1182
-# 
-# # Remove clusters already tested
-# cluster_iteration_index <- cluster_iteration_index[48:length(cluster_iteration_index)]
-# 
-# # testing loop
-# index_count <- 0
-
-# Make a list of cluster exclusions
-stop_exclusion_list <- c(8, 12, 18, 24, 25, 30)
-crash_exclusion_list <- c(1, 22, 32)
-
-indexes <- unique(MSstatsTMT_input$Cluster)[!unique(MSstatsTMT_input$Cluster) %in% 1:max(c(stop_exclusion_list, crash_exclusion_list))]
-
-for(i in indexes) {
-  print(paste("Now testing cluster:", i))
-  MSstats_summarised <- getWeightedProteinSummary(
-    dplyr::filter(MSstatsTMT_input, Cluster == i),
-    norm = "p_norm",
-    norm_parameter = 1,
-    weights_mode = "contributions",
-    tolerance = 0.1,
-    max_iter = 10,
-    initial_summary = "unique",
-    weights_penalty = FALSE,
-    weights_penalty_param = 0.1,
-    save_weights_history = FALSE,
-    save_convergence_history = FALSE
-  )
-}
-
 # Get protein summaries
 MSstats_summarised <- getWeightedProteinSummary(
-  dplyr::filter(MSstatsTMT_input, Cluster == 19),
+  Input_fine,
   norm = "p_norm",
   norm_parameter = 1,
   weights_mode = "contributions",
