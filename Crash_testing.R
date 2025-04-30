@@ -3,16 +3,31 @@ load("~/Documents/Coding/MSstats_workflow/test_input/Input_crash.rda")
 load("~/Documents/Coding/MSstats_workflow/test_input/Input_error.rda")
 load("~/Documents/Coding/MSstats_workflow/test_input/Input_fine.rda")
 
+summarise_duplicates <- function(Input_data) {
+  Input_summary <- Input_data %>% mutate(Index = paste(
+    TechRepMixture,
+    BioReplicate,
+    Condition,
+    Intensity,
+    log2Intensity,
+    log2IntensityNormalized,
+    ProteinName,
+    PSM, sep = "_")) %>%
+    group_by(Index) %>%
+    summarise(Count = n()) %>%
+    filter(Count > 1) %>%
+    arrange(desc(Count))
+  
+  return(Input_summary)
+}
+
 # Code to check uniqueness of rows in data
 rows_fine <- nrow(Input_fine)
 rows_error <- nrow(Input_error)
 rows_crash <- nrow(Input_crash)
 
 columns_to_select <- c(
-  "Cluster",
-  "ProteinName",
-  "PeptideSequence",
-  "Run",
+  "Cluster", "ProteinName", "PeptideSequence", "Run",
   "Channel",
   "Charge",
   "PSM",
@@ -41,26 +56,14 @@ columns_to_select <- c(
   "log2Intensity",
   "log2IntensityNormalized",
   "ProteinName",
-  "PSM"
+  "PSM",
+  "Cluster"
 )
 
-summarise_duplicates <- function(Input_data) {
-  Input_summary <- Input_data %>% mutate(Index = paste(
-    TechRepMixture,
-    BioReplicate,
-    Condition,
-    Intensity,
-    log2Intensity,
-    log2IntensityNormalized,
-    ProteinName,
-    PSM, sep = "_")) %>%
-    group_by(Index) %>%
-    summarise(Count = n()) %>%
-    filter(Count > 1) %>%
-    arrange(desc(Count))
-  
-  return(Input_summary)
-}
+# Compare lengths
+rows_fine - nrow(unique(select(Input_fine, all_of(columns_to_select))))
+rows_error - nrow(unique(select(Input_error, all_of(columns_to_select))))
+rows_crash - nrow(unique(select(Input_crash, all_of(columns_to_select))))
 
 # Finding duplicate rows
 Input_fine_summary <- summarise_duplicates(Input_fine)
@@ -75,40 +78,6 @@ Input_crash_summary <- summarise_duplicates(Input_crash)
 rows_fine - nrow(unique(select(Input_fine, columns_to_select)))
 rows_error - nrow(unique(select(Input_error, columns_to_select)))
 rows_crash - nrow(unique(select(Input_crash, columns_to_select)))
-
-# Try removing channels causing errors in crashing data
-# Doesn't cause R to crash, but still stops with the same error as the error dataset.
-MSstats_summarised <- getWeightedProteinSummary(
-  filter(Input_crash, !Channel %in% c("126", "135N")),
-  norm = "p_norm",
-  norm_parameter = 1,
-  weights_mode = "contributions",
-  tolerance = 0.1,
-  max_iter = 10,
-  initial_summary = "unique",
-  weights_penalty = FALSE,
-  weights_penalty_param = 0.1,
-  save_weights_history = FALSE,
-  save_convergence_history = FALSE
-)
-
-# Filter out proteins causing the crash
-Crash_proteins <- filter(Input_crash_index, Index %in% Input_crash_summary$Index) %>% .$ProteinName
-
-# Try again without these proteins
-MSstats_summarised <- getWeightedProteinSummary(
-  filter(Input_crash, !ProteinName %in% Crash_proteins),
-  norm = "p_norm",
-  norm_parameter = 1,
-  weights_mode = "contributions",
-  tolerance = 0.1,
-  max_iter = 10,
-  initial_summary = "unique",
-  weights_penalty = FALSE,
-  weights_penalty_param = 0.1,
-  save_weights_history = FALSE,
-  save_convergence_history = FALSE
-)
 
 # # Get cluster sizes
 # cluster_sizes <- MSstatsTMT_input %>%
@@ -157,4 +126,55 @@ for(i in indexes) {
     save_weights_history = FALSE,
     save_convergence_history = FALSE
   )
+}
+
+# Try again without these proteins
+MSstats_summarised <- getWeightedProteinSummary(
+  Input_error_simple,
+  norm = "p_norm",
+  norm_parameter = 1,
+  weights_mode = "contributions",
+  tolerance = 0.1,
+  max_iter = 10,
+  initial_summary = "unique",
+  weights_penalty = FALSE,
+  weights_penalty_param = 0.1,
+  save_weights_history = FALSE,
+  save_convergence_history = FALSE
+)
+
+results_list <- list()
+for(protein in unique(Input_error$ProteinName)) {
+  # Skip proteins with multiple isoforms or try simplifying them
+  if(grepl(";", protein)) {
+    print(paste("Skipping complex protein:", protein))
+    next
+  }
+  
+  protein_data <- Input_error[Input_error$ProteinName == protein, ]
+  
+  tryCatch({
+    protein_result <- getWeightedProteinSummary(
+      protein_data,
+      norm = "p_norm",
+      norm_parameter = 1,
+      weights_mode = "contributions",
+      tolerance = 0.1,
+      max_iter = 10,
+      initial_summary = "unique",
+      weights_penalty = FALSE,
+      weights_penalty_param = 0.1,
+      save_weights_history = FALSE,
+      save_convergence_history = FALSE
+    )
+    results_list[[protein]] <- protein_result
+    print(paste("Success for protein:", protein))
+  }, error = function(e) {
+    print(paste("Error for protein:", protein, "-", e$message))
+  })
+}
+
+# Combine successful results if any
+if(length(results_list) > 0) {
+  combined_results <- do.call(rbind, results_list)
 }
