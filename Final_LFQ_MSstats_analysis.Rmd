@@ -21,8 +21,8 @@ set.seed(44)
 # Set directories and annotations file name
 input_dir <- paste0(getwd(), "/LFQ_input/")
 output_dir <- paste0(getwd(), "/LFQ_output/")
-annotations_file <- "run_annotations.tsv"
-contrast_matrix_file <- "contrast_matrix.tsv"
+annotations_file <- "run_annotations_subgroups.tsv"
+contrast_matrix_file <- "contrast_matrix_subgroups.tsv"
 
 # Load packages
 library(MSstats) # Mass spec data statisitcal analysis
