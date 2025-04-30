@@ -34,7 +34,6 @@ library(dplyr) # Data manipulation
 library(tidyr) # Split column into multiple rows for weighted peptides input
 library(stringr) # Renaming PSM column names
 library(data.table) # Convert data.frame to data.table for weighted peptide input
-library(splitstackshape) # Split up uique protein names for weighted input
 ```
 
 # Functions
@@ -104,73 +103,42 @@ contrast_matrix <- contrast_matrix[, -1]
 Preprocessing the TMT input using the shared peptide weighting method - based on the MWS reproduction github page:
 https://github.com/mstaniak/MWS_reproduction/blob/main/05_tpp_onepot_data_preparation.R
 ```{r Weighted input preprocessing}
-# Process using weigthing for unique peptides using function derived from example code sent by Mateusz Staniak
-
-# Full peptide-protein graphs ----
-psms <- as.data.table(PSMs)
-pp_orig <- unique(psms[, .(PeptideSequence = `Annotated.Sequence`, ProteinName = `Protein.Accessions`)])
-pp <- cSplit(pp_orig, sep = "; ", direction = "long", drop = FALSE, splitCols = "ProteinName")
-pp[, ProteinName := stringr::str_replace_all(ProteinName, "\\-1", "")]
-pp_graph <- createPeptideProteinGraph(pp)
-
-rm(pp_orig)
-gc()
-
-# # Cluster identification ----
-pp <- addClusterMembership(pp, pp_graph)
-input_all_prots <- merge(psms, pp, by.x = "Annotated.Sequence", by.y = "PeptideSequence", allow.cartesian = T, all.x = T, all.y = T)
-input_all_prots[, `Master.Protein.Accessions` := NULL]
-input_all_prots[, `Protein.Accessions` := NULL]
-
-rm(pp, pp_graph, psms)
-gc()
-
-# # MSstatsTMT pre-processing ----
-procd <- MSstatsTMT::PDtoMSstatsTMTFormat(input_all_prots, annotations,
-  which.proteinid = "ProteinName",
+# Process using weighting for unique peptides
+# Format using MSstatsTMT - will also deal with fractions
+MSstatsTMT_input <- MSstatsTMT::PDtoMSstatsTMTFormat(
+  input = PSMs,
+  annotation = annotations,
+  which.proteinid = "Protein.Accessions",
   useNumProteinsColumn = FALSE,
   useUniquePeptide = FALSE,
-  rmPSM_withfewMea_withinRun = FALSE,
+  rmPSM_withfewMea_withinRun = FALSE, # Default: TRUE
   rmProtein_with1Feature = FALSE,
-  summaryforMultipleRows = max,
-  use_log_file = FALSE,
+  summaryforMultipleRows = sum,
+  use_log_file = TRUE,
   append = FALSE,
-  verbose = TRUE
-)
+  verbose = TRUE,
+  log_file_path = paste0(
+    output_dir,
+    "/logs/PDtoMSstatsTMTFormat_log_",
+    format(Sys.time(), "%Y_%m_%d_%H_%M_%S"),
+    ".txt"
+  )
+) %>%
+  as.data.table()
 
-rm(input_all_prots)
-gc()
+# Add clusters for the processIsoforms function
+pp_graph <- createPeptideProteinGraph(MSstatsTMT_input)
+MSstatsTMT_input <- addClusterMembership(MSstatsTMT_input, pp_graph)
 
-procd <- as.data.table(procd)
-# Process isoforms ---
-# ## onePot
-procd[, log2Intensity := log(Intensity, 2)]
-graph_procd <- createPeptideProteinGraph(procd)
-procd <- addClusterMembership(procd, graph_procd)
-procd[, IsUnique := uniqueN(ProteinName) == 1, by = "PSM"]
+# Process isoforms
+MSstatsTMT_input <- processIsoforms(MSstatsTMT_input, TRUE, TRUE, FALSE)
 
-# procd_merge_single_identical <- processIsoforms(procd, T, T, F)
-# procd_merge_single_identical[, IsUnique := uniqueN(ProteinName) == 1, by = "PSM"]
+# Normalise
+MSstatsTMT_input <- normalizeSharedPeptides(MSstatsTMT_input)
 
-# Optional steps:
-# merging or filtering isoforms if there is not enough feature-level information
-procd_iso <- processIsoforms(procd, T, T, F)
-
-rm(procd, graph_procd)
-gc()
-
-# Normalization (feature level, median-based)
-procd_iso[, Intensity := 2^log2Intensity]
-procd_iso <- normalizeSharedPeptides(procd_iso)
-procd_iso_graph <- createPeptideProteinGraph(procd_iso)
-procd_iso <- addClusterMembership(procd_iso, procd_iso_graph)
-# Cluster statistics
-procd_iso <- getClusterStatistics(procd_iso, TRUE)
-
-rm(procd_iso_graph)
-gc()
-
-MSstatsTMT_input <- procd_iso
+# Add protein group clusters
+pp_graph <- createPeptideProteinGraph(MSstatsTMT_input)
+MSstatsTMT_input <- addClusterMembership(MSstatsTMT_input, pp_graph)
 
 # Save the prepared data
 save(MSstatsTMT_input, file = paste0(output_dir, "TMT_preprocessed_weighted.rda"))
@@ -179,58 +147,9 @@ save(MSstatsTMT_input, file = paste0(output_dir, "TMT_preprocessed_weighted.rda"
 # Weighted processing
 Processing the TMT input using the shared peptide weighting method
 ```{r Weighted input processing}
-# # Get cluster sizes
-# cluster_sizes <- MSstatsTMT_input %>%
-#   group_by(Cluster) %>%
-#   summarise(Cluster_count = n())
-# 
-# # Initiate blank index
-# cluster_iteration_index <- numeric()
-# 
-# # Loop through and select a cluster to use as an example for each one
-# for(i in sort(unique(cluster_sizes$Cluster_count))) {
-#   cluster_iteration_index <- c(
-#     cluster_iteration_index,
-#     as.numeric(dplyr::filter(cluster_sizes, Cluster_count == i)[1,1])
-#   )
-# }
-# 
-# # Manually change some clusters not functioning
-# cluster_iteration_index[cluster_iteration_index == 420] <- 495
-# cluster_iteration_index[cluster_iteration_index == 772] <- 1182
-# 
-# # Remove clusters already tested
-# cluster_iteration_index <- cluster_iteration_index[48:length(cluster_iteration_index)]
-# 
-# # testing loop
-# index_count <- 0
-
-# Make a list of cluster exclusions
-stop_exclusion_list <- c(8, 12, 18, 24, 25, 30)
-crash_exclusion_list <- c(1, 22, 32)
-
-indexes <- unique(MSstatsTMT_input$Cluster)[!unique(MSstatsTMT_input$Cluster) %in% 1:max(c(stop_exclusion_list, crash_exclusion_list))]
-
-for(i in indexes) {
-  print(paste("Now testing cluster:", i))
-  MSstats_summarised <- getWeightedProteinSummary(
-    dplyr::filter(MSstatsTMT_input, Cluster == i),
-    norm = "p_norm",
-    norm_parameter = 1,
-    weights_mode = "contributions",
-    tolerance = 0.1,
-    max_iter = 10,
-    initial_summary = "unique",
-    weights_penalty = FALSE,
-    weights_penalty_param = 0.1,
-    save_weights_history = FALSE,
-    save_convergence_history = FALSE
-  )
-}
-
 # Get protein summaries
 MSstats_summarised <- getWeightedProteinSummary(
-  dplyr::filter(MSstatsTMT_input, Cluster == 19),
+  MSstatsTMT_input,
   norm = "p_norm",
   norm_parameter = 1,
   weights_mode = "contributions",
