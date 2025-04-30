@@ -1,4 +1,4 @@
-psms_onepot <- as.data.table(PSMs[1:1000, ])
+psms_onepot <- as.data.table(PSMs)
 
 # Full peptide-protein graphs ----
 ## onePot
@@ -123,8 +123,18 @@ onepot_shared_summaries_int <- lapply(
     print(unique(x$Cluster))
     tryCatch(
       {
-        getWeightedProteinSummary(x, "Huber", 1e-6,
-          max_iter = 100, tolerance = 1e-2, initial_summary = "flat"
+        getWeightedProteinSummary(
+          x,
+          norm = "p_norm",
+          norm_parameter = 1,
+          weights_mode = "contributions",
+          tolerance = 0.1,
+          max_iter = 10,
+          initial_summary = "unique",
+          weights_penalty = FALSE,
+          weights_penalty_param = 0.1,
+          save_weights_history = FALSE,
+          save_convergence_history = FALSE
         )
       },
       error = function(e) NULL
@@ -137,7 +147,19 @@ onepot_unique_summaries_int <- lapply(
   function(x) {
     print(unique(x$Cluster))
     if (nrow(x[(IsUnique)]) > 0) {
-      getWeightedProteinSummary(x[(IsUnique)], "Huber", 1e-6, max_iter = 100, tolerance = 1e-2)
+      getWeightedProteinSummary(
+        x,
+        norm = "p_norm",
+        norm_parameter = 1,
+        weights_mode = "contributions",
+        tolerance = 0.1,
+        max_iter = 10,
+        initial_summary = "unique",
+        weights_penalty = FALSE,
+        weights_penalty_param = 0.1,
+        save_weights_history = FALSE,
+        save_convergence_history = FALSE
+      )
     } else {
       NULL
     }
@@ -149,7 +171,19 @@ onepot_all_summaries_int <- lapply(
     print(unique(x$Cluster))
     lapply(split(x, x$ProteinName), function(y) {
       y$IsUnique <- TRUE
-      getWeightedProteinSummary(y, "Huber", 1e-6, max_iter = 100, tolerance = 1e-2)
+      getWeightedProteinSummary(
+        x,
+        norm = "p_norm",
+        norm_parameter = 1,
+        weights_mode = "contributions",
+        tolerance = 0.1,
+        max_iter = 10,
+        initial_summary = "unique",
+        weights_penalty = FALSE,
+        weights_penalty_param = 0.1,
+        save_weights_history = FALSE,
+        save_convergence_history = FALSE
+      )
     })
   }
 )
@@ -158,9 +192,9 @@ table(sapply(onepot_shared_summaries_int, is.null))
 table(sapply(onepot_unique_summaries_int, is.null))
 table(sapply(onepot_all_summaries_int, is.null))
 
-saveRDS(onepot_shared_summaries_int, "processed_data/onepot_tpp/onepot_sh_summs.RDS")
-saveRDS(onepot_unique_summaries_int, "processed_data/onepot_tpp/onepot_un_summs.RDS")
-saveRDS(onepot_all_summaries_int, "processed_data/onepot_tpp/onepot_al_summs.RDS")
+saveRDS(onepot_shared_summaries_int, "processed_data/onepot_tpp/onepot_sh_summs_new.RDS")
+saveRDS(onepot_unique_summaries_int, "processed_data/onepot_tpp/onepot_un_summs_new.RDS")
+saveRDS(onepot_all_summaries_int, "processed_data/onepot_tpp/onepot_al_summs_new.RDS")
 
 onepot_shared_summaries_int <- readRDS("processed_data/onepot_tpp/onepot_sh_summs.RDS")
 onepot_unique_summaries_int <- readRDS("processed_data/onepot_tpp/onepot_un_summs.RDS")
@@ -179,18 +213,19 @@ uniqueN(onepot_feat_data_unique$ProteinName)
 uniqueN(onepot_feat_data_all$ProteinName)
 
 # Group comparison -----
+print("Done! Woo!")
 cm_onepot <- contrast_matrix
 gc_sh_onepot <- MSstatsTMT::groupComparisonTMT(
   list(
     ProteinLevelData = onepot_protein_data_shared,
     FeatureLevelData = onepot_feat_data_shared
-  ), cm_onepot,
+  ), contrast_matrix,
   use_log_file = FALSE
 )
 gc_un_onepot <- MSstatsTMT::groupComparisonTMT(list(
   ProteinLevelData = onepot_protein_data_unique,
   FeatureLevelData = onepot_feat_data_unique
-), cm_onepot, use_log_file = FALSE)
+), contrast_matrix, use_log_file = FALSE)
 gc_al_onepot <- MSstatsTMT::groupComparisonTMT(list(
   ProteinLevelData = onepot_protein_data_all,
   FeatureLevelData = onepot_feat_data_all
