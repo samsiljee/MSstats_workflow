@@ -1,25 +1,23 @@
-psms_onepot <- as.data.table(PSMs)
+psms_datatable <- as.data.table(PSMs)
 
 # Full peptide-protein graphs ----
-## onePot
-onepot_pp_orig <- unique(psms_onepot[, .(PeptideSequence = `Annotated.Sequence`, ProteinName = `Protein.Accessions`)])
-onepot_pp <- cSplit(onepot_pp_orig, sep = ";", direction = "long", drop = FALSE, splitCols = "ProteinName")
-onepot_pp[, ProteinName := stringr::str_replace_all(ProteinName, "\\-1", "")]
-onepot_pp_graph <- createPeptideProteinGraph(onepot_pp)
+pp_orig <- unique(psms_datatable[, .(PeptideSequence = `Annotated.Sequence`, ProteinName = `Protein.Accessions`)])
+pp <- cSplit(pp_orig, sep = ";", direction = "long", drop = FALSE, splitCols = "ProteinName")
+pp[, ProteinName := stringr::str_replace_all(ProteinName, "\\-1", "")]
+pp_graph <- createPeptideProteinGraph(pp)
 
 # Cluster identification ----
-## onePot
-onepot_pp <- addClusterMembership(onepot_pp, onepot_pp_graph)
-onepot_input_all_prots <- merge(psms_onepot, onepot_pp, by.x = "Annotated.Sequence", by.y = "PeptideSequence", allow.cartesian = T, all.x = T, all.y = T)
-onepot_input_all_prots[, `Master.Protein.Accessions` := NULL]
-onepot_input_all_prots[, `Protein.Accessions` := NULL]
+pp <- addClusterMembership(pp, pp_graph)
+input_all_prots <- merge(psms_datatable, pp, by.x = "Annotated.Sequence", by.y = "PeptideSequence", allow.cartesian = T, all.x = T, all.y = T)
+input_all_prots[, `Master.Protein.Accessions` := NULL]
+input_all_prots[, `Protein.Accessions` := NULL]
 
 # MSstatsTMT pre-processing ----
-rm(onepot_pp_graph, curve_pp_graph, onepot_pp_orig, curve_pp_raw)
+rm(pp_graph, pp_orig)
 gc()
-# onePot
-onepot_procd <- MSstatsTMT::PDtoMSstatsTMTFormat(
-  onepot_input_all_prots, annotations,
+
+procd <- MSstatsTMT::PDtoMSstatsTMTFormat(
+  input_all_prots, annotations,
   which.proteinid = "ProteinName",
   useNumProteinsColumn = FALSE,
   useUniquePeptide = FALSE,
@@ -31,33 +29,32 @@ onepot_procd <- MSstatsTMT::PDtoMSstatsTMTFormat(
   verbose = TRUE
 )
 
-saveRDS(onepot_procd, "processed_data/onepot_tpp/onepot_procd.RDS")
-onepot_procd <- readRDS("processed_data/onepot_tpp/onepot_procd.RDS")
-onepot_procd <- as.data.table(onepot_procd)
-rm(psms_onepot, onepot_pp, onepot_input_all_prots, curve_data_pp, curve_pp, curve_input)
+saveRDS(procd, "processed_data/tpp/procd.RDS")
+procd <- readRDS("processed_data/tpp/procd.RDS")
+procd <- as.data.table(procd)
+rm(psms_datatable, pp, input_all_prots)
 gc()
 
 # Process isoforms ---
-## onePot
-onepot_procd[, log2Intensity := log(Intensity, 2)]
-onepot_graph_procd <- createPeptideProteinGraph(onepot_procd)
-onepot_procd <- addClusterMembership(onepot_procd, onepot_graph_procd)
-onepot_procd_iso <- processIsoforms(onepot_procd, T, T, F)
+procd[, log2Intensity := log(Intensity, 2)]
+graph_procd <- createPeptideProteinGraph(procd)
+procd <- addClusterMembership(procd, graph_procd)
+procd_iso <- processIsoforms(procd, T, T, F)
 
-saveRDS(onepot_procd_iso, "processed_data/onepot_tpp/onepot_procd_iso.RDS")
-onepot_procd_iso <- readRDS("processed_data/onepot_tpp/onepot_procd_iso.RDS")
+saveRDS(procd_iso, "processed_data/tpp/procd_iso.RDS")
+procd_iso <- readRDS("processed_data/tpp/procd_iso.RDS")
 
 # Normalization ----
-onepot_procd_iso[, Intensity := 2^log2Intensity]
-onepot_procd_iso <- normalizeSharedPeptides(onepot_procd_iso)
-onepot_procd_iso_graph <- createPeptideProteinGraph(onepot_procd_iso)
-onepot_procd_iso <- addClusterMembership(onepot_procd_iso, onepot_procd_iso_graph)
-rm(onepot_procd_iso_graph)
+procd_iso[, Intensity := 2^log2Intensity]
+procd_iso <- normalizeSharedPeptides(procd_iso)
+procd_iso_graph <- createPeptideProteinGraph(procd_iso)
+procd_iso <- addClusterMembership(procd_iso, procd_iso_graph)
+rm(procd_iso_graph)
 
 # Cluster statistics ----
-onepot_procd_iso <- getClusterStatistics(onepot_procd_iso, TRUE)
+procd_iso <- getClusterStatistics(procd_iso, TRUE)
 
-saveRDS(onepot_procd_iso, "processed_data/onepot_tpp/onepot_sub_int_cls.RDS")
+saveRDS(procd_iso, "processed_data/tpp/sub_int_cls.RDS")
 
 # Functions ----
 normalizeProteins <- function(summarized_data) {
@@ -101,24 +98,24 @@ normalizeProteins <- function(summarized_data) {
 }
 
 # Input data ----
-onepot_int_cls_tbl <- readRDS("processed_data/onepot_tpp/onepot_sub_int_cls.RDS")
+int_cls_tbl <- readRDS("processed_data/tpp/sub_int_cls.RDS")
 
 # Protein cluster processing and descriptive statistics ----
-onepot_int_cls_each_uni <- onepot_int_cls_tbl[(HasUnique)]
-onepot_int_cls_each_uni[, IsUnique := uniqueN(ProteinName) == 1, by = "PSM"]
-onepot_int_cls_each_uni[, NumProteins := uniqueN(ProteinName), by = "Cluster"]
-onepot_int_cls_each_uni[, HasUnique := any(IsUnique), by = "ProteinName"]
-onepot_int_cls_each_uni <- onepot_int_cls_each_uni[(HasUnique)]
-onepot_int_cls_each_uni[, IsUnique := uniqueN(ProteinName) == 1, by = "PSM"]
-onepot_int_cls_each_uni[, NumProteins := uniqueN(ProteinName), by = "Cluster"]
+int_cls_each_uni <- int_cls_tbl[(HasUnique)]
+int_cls_each_uni[, IsUnique := uniqueN(ProteinName) == 1, by = "PSM"]
+int_cls_each_uni[, NumProteins := uniqueN(ProteinName), by = "Cluster"]
+int_cls_each_uni[, HasUnique := any(IsUnique), by = "ProteinName"]
+int_cls_each_uni <- int_cls_each_uni[(HasUnique)]
+int_cls_each_uni[, IsUnique := uniqueN(ProteinName) == 1, by = "PSM"]
+int_cls_each_uni[, NumProteins := uniqueN(ProteinName), by = "Cluster"]
 
-onepot_split <- split(onepot_int_cls_each_uni[NumProteins > 1], onepot_int_cls_each_uni[NumProteins > 1, Cluster])
+split <- split(int_cls_each_uni[NumProteins > 1], int_cls_each_uni[NumProteins > 1, Cluster])
 
-length(onepot_split)
+length(split)
 
 # Summarization ----
-onepot_shared_summaries_int <- lapply(
-  onepot_split,
+shared_summaries_int <- lapply(
+  split,
   function(x) {
     print(unique(x$Cluster))
     tryCatch(
@@ -142,8 +139,8 @@ onepot_shared_summaries_int <- lapply(
   }
 )
 
-onepot_unique_summaries_int <- lapply(
-  onepot_split,
+unique_summaries_int <- lapply(
+  split,
   function(x) {
     print(unique(x$Cluster))
     if (nrow(x[(IsUnique)]) > 0) {
@@ -165,8 +162,8 @@ onepot_unique_summaries_int <- lapply(
     }
   }
 )
-onepot_all_summaries_int <- lapply(
-  onepot_split,
+all_summaries_int <- lapply(
+  split,
   function(x) {
     print(unique(x$Cluster))
     lapply(split(x, x$ProteinName), function(y) {
@@ -188,49 +185,84 @@ onepot_all_summaries_int <- lapply(
   }
 )
 
-table(sapply(onepot_shared_summaries_int, is.null))
-table(sapply(onepot_unique_summaries_int, is.null))
-table(sapply(onepot_all_summaries_int, is.null))
+table(sapply(shared_summaries_int, is.null))
+table(sapply(unique_summaries_int, is.null))
+table(sapply(all_summaries_int, is.null))
 
-saveRDS(onepot_shared_summaries_int, "processed_data/onepot_tpp/onepot_sh_summs_new.RDS")
-saveRDS(onepot_unique_summaries_int, "processed_data/onepot_tpp/onepot_un_summs_new.RDS")
-saveRDS(onepot_all_summaries_int, "processed_data/onepot_tpp/onepot_al_summs_new.RDS")
+saveRDS(shared_summaries_int, "processed_data/tpp/sh_summs_new.RDS")
+saveRDS(unique_summaries_int, "processed_data/tpp/un_summs_new.RDS")
+saveRDS(all_summaries_int, "processed_data/tpp/al_summs_new.RDS")
 
-onepot_shared_summaries_int <- readRDS("processed_data/onepot_tpp/onepot_sh_summs.RDS")
-onepot_unique_summaries_int <- readRDS("processed_data/onepot_tpp/onepot_un_summs.RDS")
-onepot_all_summaries_int <- readRDS("processed_data/onepot_tpp/onepot_al_summs.RDS")
+shared_summaries_int <- readRDS("processed_data/tpp/sh_summs.RDS")
+unique_summaries_int <- readRDS("processed_data/tpp/un_summs.RDS")
+all_summaries_int <- readRDS("processed_data/tpp/al_summs.RDS")
 
-onepot_protein_data_shared <- rbindlist(lapply(onepot_shared_summaries_int, proteinData))
-onepot_protein_data_unique <- rbindlist(lapply(onepot_unique_summaries_int, proteinData))
-onepot_protein_data_all <- rbindlist(lapply(onepot_all_summaries_int, function(x) rbindlist(lapply(x, proteinData))))
+protein_data_shared <- rbindlist(lapply(shared_summaries_int, proteinData))
+protein_data_unique <- rbindlist(lapply(unique_summaries_int, proteinData))
+protein_data_all <- rbindlist(lapply(all_summaries_int, function(x) rbindlist(lapply(x, proteinData))))
 
-onepot_feat_data_shared <- rbindlist(lapply(onepot_shared_summaries_int, featureData))
-onepot_feat_data_unique <- rbindlist(lapply(onepot_unique_summaries_int, featureData))
-onepot_feat_data_all <- rbindlist(lapply(onepot_all_summaries_int, function(x) rbindlist(lapply(x, featureData))))
+feat_data_shared <- rbindlist(lapply(shared_summaries_int, featureData))
+feat_data_unique <- rbindlist(lapply(unique_summaries_int, featureData))
+feat_data_all <- rbindlist(lapply(all_summaries_int, function(x) rbindlist(lapply(x, featureData))))
 
-uniqueN(onepot_feat_data_shared$ProteinName)
-uniqueN(onepot_feat_data_unique$ProteinName)
-uniqueN(onepot_feat_data_all$ProteinName)
+uniqueN(feat_data_shared$ProteinName)
+uniqueN(feat_data_unique$ProteinName)
+uniqueN(feat_data_all$ProteinName)
 
 # Group comparison -----
 print("Done! Woo!")
-cm_onepot <- contrast_matrix
-gc_sh_onepot <- MSstatsTMT::groupComparisonTMT(
+contrast_matrix
+gc_sh <- MSstatsTMT::groupComparisonTMT(
   list(
-    ProteinLevelData = onepot_protein_data_shared,
-    FeatureLevelData = onepot_feat_data_shared
+    ProteinLevelData = protein_data_shared,
+    FeatureLevelData = feat_data_shared
   ), contrast_matrix,
-  use_log_file = FALSE
+  moderated = FALSE, # Steph: TRUE
+  adj.method = "BH",
+  remove_norm_channel = TRUE,
+  remove_empty_channel = TRUE,
+  save_fitted_models = FALSE,
+  use_log_file = FALSE,
+  verbose = TRUE
 )
-gc_un_onepot <- MSstatsTMT::groupComparisonTMT(list(
-  ProteinLevelData = onepot_protein_data_unique,
-  FeatureLevelData = onepot_feat_data_unique
-), contrast_matrix, use_log_file = FALSE)
-gc_al_onepot <- MSstatsTMT::groupComparisonTMT(list(
-  ProteinLevelData = onepot_protein_data_all,
-  FeatureLevelData = onepot_feat_data_all
-), cm_onepot, use_log_file = FALSE)
 
-gc_sh_dt_onepot <- as.data.table(gc_sh_onepot$ComparisonResult)
-gc_un_dt_onepot <- as.data.table(gc_un_onepot$ComparisonResult)
-gc_al_dt_onepot <- as.data.table(gc_al_onepot$ComparisonResult)
+gc_un <- MSstatsTMT::groupComparisonTMT(list(
+  ProteinLevelData = protein_data_unique,
+  FeatureLevelData = feat_data_unique
+), contrast_matrix,
+moderated = FALSE, # Steph: TRUE
+adj.method = "BH",
+remove_norm_channel = TRUE,
+remove_empty_channel = TRUE,
+save_fitted_models = FALSE,
+use_log_file = FALSE,
+verbose = TRUE)
+
+gc_al <- MSstatsTMT::groupComparisonTMT(list(
+  ProteinLevelData = protein_data_all,
+  FeatureLevelData = feat_data_all
+), contrast_matrix,
+moderated = FALSE, # Steph: TRUE
+adj.method = "BH",
+remove_norm_channel = TRUE,
+remove_empty_channel = TRUE,
+save_fitted_models = FALSE,
+use_log_file = FALSE,
+verbose = TRUE)
+
+gc_sh_dt <- as.data.table(gc_sh$ComparisonResult)
+gc_un_dt <- as.data.table(gc_un$ComparisonResult)
+gc_al_dt <- as.data.table(gc_al$ComparisonResult)
+
+write.csv(gc_sh_dt, file = "processed_data/tpp/MSstatsTMTResults_shared.csv")
+write.csv(gc_un_dt, file = "processed_data/tpp/MSstatsTMTResults_unique.csv")
+write.csv(gc_al_dt, file = "processed_data/tpp/MSstatsTMTResults_all.csv")
+
+writeLines(
+  capture.output(sessionInfo()),
+  paste0(
+    "processed_data/tpp/sessionInfo_",
+    format(Sys.time(), "%Y_%m_%d_%H_%M_%S"),
+    ".txt"
+  )
+)
