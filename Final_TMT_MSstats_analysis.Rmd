@@ -19,8 +19,8 @@ knitr::opts_chunk$set(echo = TRUE)
 set.seed(44)
 
 # Set directories and annotations file name
-input_dir <- paste0(getwd(), "/TMT_input/")
-output_dir <- paste0(getwd(), "/TMT_output/")
+input_dir <- paste0(getwd(), "/TMT_input_no_isoforms/")
+output_dir <- paste0(getwd(), "/TMT_output_weighted/")
 run_annotations_file <- "run_annotations.tsv"
 channel_annotations_file <- "channel_annotations_subgroups.tsv"
 contrast_matrix_file <- "contrast_matrix_subgroups.tsv"
