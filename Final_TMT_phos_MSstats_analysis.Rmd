@@ -25,7 +25,7 @@ run_annotations_phos_file <- "run_annotations_phos.tsv"
 run_annotations_proteins_file <- "run_annotations_proteins.tsv"
 channel_annotations_file <- "channel_annotations_subgroups.tsv"
 contrast_matrix_file <- "contrast_matrix_subgroups.tsv"
-FASTA_file <- "Human_Swissprot_w_contaminants_eGFP_20250115.fasta"
+FASTA_file <- "Human_swissprot_no_iso_20250915_0602_Cell_Culture_Contaminants_GFP_to_eGFP_edit.fasta"
 
 # Load packages
 library(MSstatsPTM) # Mass spec data statisitcal analysis
