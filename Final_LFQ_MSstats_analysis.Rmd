@@ -352,10 +352,87 @@ Basic heatmap of proteins in processed data
 # Power analysis
 Run some tests to demonstrate power of models, and to calculate suggested sample sizes for future experiments. Used mostly for the LFQ results chapter to justify the argument comparing paired vs group comparison based models
 ```{r Power analysis, echo = FALSE}
-sample_size_calc = designSampleSize(test_MSstats$FittedModel,
-                                    desiredFC=c(1.75,2.5),
-                                    power = TRUE,
-                                    numSample = 8)
+# Run the tests - separately for each comparison
+test_p53_control <- groupComparison(
+  contrast.matrix = contrast_matrix["P53 KD vs control",],
+  data = MSstats_processed,
+  save_fitted_models = TRUE, # Save to use for power analysis
+  log_base = 2,
+  append = FALSE,
+  use_log_file = FALSE,
+  verbose = FALSE,
+  numberOfCores = available_cores
+)
+test_NS_S <- groupComparison(
+  contrast.matrix = contrast_matrix["NS vs S",],
+  data = MSstats_processed,
+  save_fitted_models = TRUE, # Save to use for power analysis
+  log_base = 2,
+  append = FALSE,
+  use_log_file = FALSE,
+  verbose = FALSE,
+  numberOfCores = available_cores
+)
+test_F_M <- groupComparison(
+  contrast.matrix = contrast_matrix["F vs M",],
+  data = MSstats_processed,
+  save_fitted_models = TRUE, # Save to use for power analysis
+  log_base = 2,
+  append = FALSE,
+  use_log_file = FALSE,
+  verbose = FALSE,
+  numberOfCores = available_cores
+)
+
+# Run sample size calculations
+sample_size_p53_control <- designSampleSize(
+  data = test_p53_control$FittedModel,
+  desiredFC = c(1.3, 2.5),
+  FDR = 0.05,
+  numSample = 8,
+  power = TRUE,
+  append = FALSE,
+  use_log_file = TRUE,
+  verbose = TRUE,
+  log_file_path = paste0(
+    output_dir,
+    "logs/designSampleSize_p53_control_log_",
+    format(Sys.time(), "%Y_%m_%d_%H_%M_%S"),
+    ".txt"
+  )
+)
+sample_size_NS_S <- designSampleSize(
+  data = test_NS_S$FittedModel,
+  desiredFC = c(1.3, 2.5),
+  FDR = 0.05,
+  numSample = 8,
+  power = TRUE,
+  append = FALSE,
+  use_log_file = TRUE,
+  verbose = TRUE,
+  log_file_path = paste0(
+    output_dir,
+    "logs/designSampleSize_NS_S_log_",
+    format(Sys.time(), "%Y_%m_%d_%H_%M_%S"),
+    ".txt"
+  )
+)
+sample_size_F_M <- designSampleSize(
+  data = test_F_M$FittedModel,
+  desiredFC = c(1.3, 2.5),
+  FDR = 0.05,
+  numSample = 8,
+  power = TRUE,
+  append = FALSE,
+  use_log_file = TRUE,
+  verbose = TRUE,
+  log_file_path = paste0(
+    output_dir,
+    "logs/designSampleSize_F_M_log_",
+    format(Sys.time(), "%Y_%m_%d_%H_%M_%S"),
+    ".txt"
+  )
+)
 ```
 
 # Session information
