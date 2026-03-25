@@ -1,19 +1,7 @@
-# All output
-output/*
-LFQ_output/*
-TMT_output/*
-TMT_phos_output/*
-LFQ_output_subgroups/*
-TMT_output_subgroups/*
-TMT_phos_output_subgroups/*
-unique_peptides_not_weighted/*
+# All input and output
 *.log
-
-# All input
-input/*
-LFQ_input/*
-TMT_input/*
-TMT_phos_input/*
+*input*/*
+*output*/*
 
 # R project file
 *.Rproj
