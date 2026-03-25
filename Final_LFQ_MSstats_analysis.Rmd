@@ -239,6 +239,9 @@ test_MSstats <- groupComparison(
   numberOfCores = available_cores
 )
 
+# save the results
+save(test_MSstats, file = paste(output_dir, "test_MSstats.rda", sep = ""))
+
 # Extracting the comparison results
 MSstats_results <- test_MSstats$ComparisonResult
 
@@ -353,16 +356,6 @@ Basic heatmap of proteins in processed data
 Run some tests to demonstrate power of models, and to calculate suggested sample sizes for future experiments. Used mostly for the LFQ results chapter to justify the argument comparing paired vs group comparison based models
 ```{r Power analysis, echo = FALSE}
 # Run the tests - separately for each comparison
-test_p53_control <- groupComparison(
-  contrast.matrix = contrast_matrix["P53 KD vs control",],
-  data = MSstats_processed,
-  save_fitted_models = TRUE, # Save to use for power analysis
-  log_base = 2,
-  append = FALSE,
-  use_log_file = FALSE,
-  verbose = FALSE,
-  numberOfCores = available_cores
-)
 test_NS_S <- groupComparison(
   contrast.matrix = contrast_matrix["NS vs S",],
   data = MSstats_processed,
@@ -373,53 +366,30 @@ test_NS_S <- groupComparison(
   verbose = FALSE,
   numberOfCores = available_cores
 )
-test_F_M <- groupComparison(
-  contrast.matrix = contrast_matrix["F vs M",],
-  data = MSstats_processed,
-  save_fitted_models = TRUE, # Save to use for power analysis
-  log_base = 2,
+
+# Make plot for figure in LFQ results
+# Calculate required sample size for effect sizes given FDR of 0.05 and power of 0.8 - use smoking status data
+sample_size_effect_size <- designSampleSize(
+  data = test_NS_S$FittedModel,
+  desiredFC = c(1.2, 1.8),
+  FDR = 0.05,
+  numSample = TRUE,
+  power = 0.8,
   append = FALSE,
-  use_log_file = FALSE,
-  verbose = FALSE,
-  numberOfCores = available_cores
+  use_log_file = TRUE,
+  verbose = TRUE,
+  log_file_path = paste0(
+    output_dir,
+    "logs/designSampleSize_F_M_log_",
+    format(Sys.time(), "%Y_%m_%d_%H_%M_%S"),
+    ".txt"
+  )
 )
 
-# Run sample size calculations
-sample_size_p53_control <- designSampleSize(
-  data = test_p53_control$FittedModel,
-  desiredFC = c(1.3, 2.5),
-  FDR = 0.05,
-  numSample = 8,
-  power = TRUE,
-  append = FALSE,
-  use_log_file = TRUE,
-  verbose = TRUE,
-  log_file_path = paste0(
-    output_dir,
-    "logs/designSampleSize_p53_control_log_",
-    format(Sys.time(), "%Y_%m_%d_%H_%M_%S"),
-    ".txt"
-  )
-)
-sample_size_NS_S <- designSampleSize(
+# Repeat for power by sample size given effect given FDR of 0.05 and sample size of 8 - use smoking status data
+power_effect_size <- designSampleSize(
   data = test_NS_S$FittedModel,
-  desiredFC = c(1.3, 2.5),
-  FDR = 0.05,
-  numSample = 8,
-  power = TRUE,
-  append = FALSE,
-  use_log_file = TRUE,
-  verbose = TRUE,
-  log_file_path = paste0(
-    output_dir,
-    "logs/designSampleSize_NS_S_log_",
-    format(Sys.time(), "%Y_%m_%d_%H_%M_%S"),
-    ".txt"
-  )
-)
-sample_size_F_M <- designSampleSize(
-  data = test_F_M$FittedModel,
-  desiredFC = c(1.3, 2.5),
+  desiredFC = c(1.2, 1.8),
   FDR = 0.05,
   numSample = 8,
   power = TRUE,
@@ -433,6 +403,34 @@ sample_size_F_M <- designSampleSize(
     ".txt"
   )
 )
+
+# Make the plot
+sample_size_effect_size %>%
+  ggplot(aes(x = desiredFC, y = numSample)) +
+  geom_line(linewidth = 1) +
+  labs(
+    x = "Effect size",
+    y = "Required sample size",
+    title = "Power analysis of LFQ proteomics, FDR = 0.05, power = 0.8"
+  ) +
+  theme_bw()
+
+# Save the plot
+ggsave(paste0(output_dir, "Power analysis n by effect.png"), width = 8, height = 5.5)
+
+# Make the plot - power
+power_effect_size %>%
+  ggplot(aes(x = desiredFC, y = power)) +
+  geom_line(linewidth = 1) +
+  labs(
+    x = "Effect size",
+    y = "Power",
+    title = "Power analysis of LFQ proteomics, FDR = 0.05, sample size = 8"
+  ) +
+  theme_bw()
+
+# Save the plot
+ggsave(paste0(output_dir, "Power analysis power by effect.png"), width = 8, height = 5.5)
 ```
 
 # Session information
