@@ -19,8 +19,8 @@ knitr::opts_chunk$set(echo = TRUE)
 set.seed(44)
 
 # Set directories and annotations file name
-input_dir <- paste0(getwd(), "/LFQ_input/")
-output_dir <- paste0(getwd(), "/LFQ_output/")
+input_dir <- paste0(getwd(), "/LFQ_input_no_isoforms/")
+output_dir <- paste0(getwd(), "/LFQ_output_no_isoforms/")
 annotations_file <- "run_annotations_subgroups.tsv"
 contrast_matrix_file <- "contrast_matrix_subgroups.tsv"
 
@@ -59,7 +59,6 @@ import_psm_data <- function(input_dir, file_list) {
 MS runs initially analysed in Proteome Discoverer 2.4, PSM files exported as text files for further processing here with `MSstats`.
 Annotation file manually created.
 The data is imported, then formatted for `MSstats` using `PDtoMSstatsFormat`.
-
 ```{r data import}
 # Load PD LFQ output from txt files
 files_list <- list.files(input_dir, full.names = TRUE)
@@ -118,9 +117,7 @@ save(MSstats_input, file = paste0(output_dir, "preprocessed.rda"))
 ```
 
 # Data Processing
-
 This chunk processes the input data including normalisation, censored cutoff, cleaning, and protein-level summarization.
-
 ```{r data processing, echo = FALSE}
 # Process the input
 MSstats_processed <- dataProcess(
@@ -188,9 +185,7 @@ save(MSstats_processed_no_normalisation, file = paste0(output_dir, "LFQ_processe
 ```
 
 # Data visualisation
-
 These plots are from functions built-in to `MSstats` and are for quality control.
-
 ```{r data visualisation, echo = FALSE}
 # # This produces a boxplot, of intensity by sample. Used as a basic way to check normalisation
 # dataProcessPlots(MSstats_processed,
@@ -224,15 +219,13 @@ These plots are from functions built-in to `MSstats` and are for quality control
 ```
 
 # Model-based comparison, and adjusted p-value
-
-First you will need to set up a comparison matrix describing which samples to compare to the others. This is dependant on the order of your runs. A matrix is used with each row as a particular combination of comparisons. Noted in the tutorial document: "We define our contrast matrix by adding a column for every condition, in alphabetical order". Alternatively, use "pairwise" for contrast.matrix argument. I was initially getting an error in the `groupComparison` call, however I believe this is due to the fact that I had uneven numbers of runs. The sum of each row of the comparison matrix should always be 0, with each group totalling to one. This can be fixed by using fractions when indicating multiple samples from the same group. However, I have not quite gotten this to work yet. The output file is a list of 3 elements; 1. data.frame "ComparisonResult" with log2FC, pvalue, etc. by protein 2. data.frame "ModelQC" with abundances etc 3. list "FittedModel" with one model for each protein of class 'lmerMod' from the `lme4` package
-
+First you will need to set up a comparison matrix describing which samples to compare to the others. This is dependant on the order of your runs. A matrix is used with each row as a particular combination of comparisons. Noted in the tutorial document: "We define our contrast matrix by adding a column for every condition, in alphabetical order". Alternatively, use "pairwise" for contrast.matrix argument. I was initially getting an error in the `groupComparison` call, however I believe this is due to the fact that I had uneven numbers of runs. The sum of each row of the comparison matrix should always be 0, with each group totaling to one. This can be fixed by using fractions when indicating multiple samples from the same group. However, I have not quite gotten this to work yet. The output file is a list of 3 elements; 1. data.frame "ComparisonResult" with log2FC, pvalue, etc. by protein 2. data.frame "ModelQC" with abundances etc 3. list "FittedModel" with one model for each protein of class 'lmerMod' from the `lme4` package
 ```{r model based comparison, echo = FALSE}
 # Run the test
 test_MSstats <- groupComparison(
   contrast.matrix = contrast_matrix,
   data = MSstats_processed,
-  save_fitted_models = FALSE,
+  save_fitted_models = TRUE, # Save to use for power analysis
   log_base = 2,
   append = FALSE,
   use_log_file = TRUE,
@@ -268,7 +261,6 @@ write.csv(MSstats_results, file = paste(output_dir, "MSstatsResults.csv", sep = 
 ```
 
 # Comparison plots
-
 ```{r comparison plots, echo = FALSE}
 # # Individual plots of log2FC with error bars for each protein
 # groupComparisonPlots(
@@ -281,7 +273,6 @@ write.csv(MSstats_results, file = paste(output_dir, "MSstatsResults.csv", sep = 
 ```
 
 # Volcano plots
-
 ```{r volcano plots}
 # # Basic volcano plot of results using `MSstats` function
 # groupComparisonPlots(
@@ -331,9 +322,7 @@ write.csv(MSstats_results, file = paste(output_dir, "MSstatsResults.csv", sep = 
 ```
 
 # Heatmaps
-
 Basic heatmap of proteins in processed data
-
 ```{r heatmap unfiltered, echo=FALSE}
 # # create a matrix of protein abundance
 # prot_mat <- processed$ProteinLevelData %>%
@@ -358,6 +347,15 @@ Basic heatmap of proteins in processed data
 #     show_row_names = FALSE,
 #     show_heatmap_legend = FALSE
 #   )
+```
+
+# Power analysis
+Run some tests to demonstrate power of models, and to calculate suggested sample sizes for future experiments. Used mostly for the LFQ results chapter to justify the argument comparing paired vs group comparison based models
+```{r Power analysis, echo = FALSE}
+sample_size_calc = designSampleSize(test_MSstats$FittedModel,
+                                    desiredFC=c(1.75,2.5),
+                                    power = TRUE,
+                                    numSample = 8)
 ```
 
 # Session information
