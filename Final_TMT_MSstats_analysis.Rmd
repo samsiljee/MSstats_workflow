@@ -164,7 +164,7 @@ MSstatsTMT_processed <- MSstatsTMT::proteinSummarization(
 )
 
 # Filter to only include required columns
-required_input_2 <- as.data.table(MSstatsTMT_processed$FeatureLevelData)[, .(ProteinName, PeptideSequence, Charge, PSM, Run, 
+required_input_2 <- as.data.table(mutate(MSstatsTMT_processed$FeatureLevelData, Intensity = 2 ^ log2Intensity))[, .(ProteinName, PeptideSequence, Charge, PSM, Run, 
                            Channel, Intensity, Condition, BioReplicate,
                            Mixture, TechRepMixture)]
 
