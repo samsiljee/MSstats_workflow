@@ -30,6 +30,7 @@ load_from_rda <- TRUE
 library(MSstatsTMT) # Mass spec data statistical analysis
 # library(devtools) # Install MSstatsWeightedSummary from local folder
 # devtools::install_local("MSstatsWeightedSummary-devel/") # Install MSstatsWeightedSummary if needed
+# devtools::install_github("Vitek-Lab/MSstatsWeightedSummary") # Install from Github
 library(MSstatsWeightedSummary) # Used to weigh shared peptides for quantification
 library(vroom) # Fast data loading
 library(dplyr) # Data manipulation
