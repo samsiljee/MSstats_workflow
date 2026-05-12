@@ -19,13 +19,14 @@ knitr::opts_chunk$set(echo = TRUE)
 set.seed(44)
 
 # Set directories and annotations file name
-input_dir <- paste0(getwd(), "/TMT_phos_input/")
-output_dir <- paste0(getwd(), "/TMT_phos_output/")
+input_dir <- paste0(getwd(), "/Phos_input/")
+output_dir <- paste0(getwd(), "/Phos_output/")
 run_annotations_phos_file <- "run_annotations_phos.tsv"
 run_annotations_proteins_file <- "run_annotations_proteins.tsv"
 channel_annotations_file <- "channel_annotations_subgroups.tsv"
 contrast_matrix_file <- "contrast_matrix_subgroups.tsv"
 FASTA_file <- "Human_swissprot_no_iso_20250915_0602_Cell_Culture_Contaminants_GFP_to_eGFP_edit.fasta"
+prob_threshold <- 75
 
 # Load packages
 library(MSstatsPTM) # Mass spec data statisitcal analysis
@@ -33,6 +34,7 @@ library(MSstatsConvert) # Prepare input data for MSstats
 library(vroom) # Fast data loading
 library(dplyr) # Data manipulation
 library(stringr) # String manipulation
+library(tidyr) # For unnest_wider function
 
 # Function to import the data given a data type key
 import_psm_data <- function(file_list) {
@@ -53,13 +55,38 @@ import_psm_data <- function(file_list) {
   # return combined data.frame
   return(dat)
 }
+
+# Function to parse phosphosite probabilities
+parse_phos_confidence <- function(x) {
+  # Return NA if missing or no phospho data
+  if (is.na(x) || !grepl(pattern = "(Phospho): ", x, fixed = TRUE)) {
+    return(list(phosphosite = NA, probability = NA))
+  } else {
+    # Separate the modifications
+    x <- unlist(str_split(x, "; "))
+    
+    # Split each modification on "(Phospho): "
+    parts <- strsplit(x, "(Phospho): ", fixed = TRUE)
+    
+    # Get residue numbers and probability scores
+    res   <- sapply(parts, `[`, 1)
+    probs <- as.numeric(sapply(parts, `[`, 2))
+    
+    # Find highest probability
+    best_prob <- max(probs)
+    
+    # Concatenate all sites matching probability
+    best_res  <- paste(res[probs == best_prob], collapse = ";")
+    
+    return(list(phosphosite = best_res, probability = best_prob))
+  }
+}
 ```
 
 # Read in the data
 MS runs initially analysed in Proteome Discoverer 2.4, PSM files exported as text files for further processing here with `MSstatsTMT`.
 Annotation file manually created.
 The data is imported, then formatted for `MSstatsTMT` using `PDtoMSstatsTMTFormat`.
-
 ```{r data import}
 # Load PSM data data
 PSMs_phos <- import_psm_data(paste0(input_dir, grep("Phospho", list.files(input_dir), value = TRUE)))
@@ -69,9 +96,12 @@ PSMs_proteins <- import_psm_data(paste0(input_dir, grep("Phospho", list.files(in
 colnames(PSMs_phos) <- colnames(PSMs_phos) %>% str_replace_all(" ", ".")
 colnames(PSMs_proteins) <- colnames(PSMs_proteins) %>% str_replace_all(" ", ".")
 
-# Manually remove a PSM causing the function to crash. removing either will do, but the first one is the preferred because it's likely to be lower quality ("Excluded by method" in PD)
-PSMs_proteins <- filter(PSMs_proteins, !(PSMs.Peptide.ID == 205676 & Spectrum.File == "Mix_TMT_F1_2_dot_5ul.raw"))
-# PSMs_proteins <- filter(PSMs_proteins, !(PSMs.Peptide.ID == 210714 & Spectrum.File == "Mix_TMT_F1_2_dot_5ul.raw"))
+# Parse the site probability column and filter
+PSMs_phos_filtered <- PSMs_phos %>%
+  rowwise() %>%
+  mutate(parsed = list(parse_phos_confidence(`ptmRS:.Best.Site.Probabilities`))) %>%
+  unnest_wider(parsed) %>%
+  filter(probability > prob_threshold)
 
 # Load annotations file
 annotations_phos <- full_join(
@@ -123,11 +153,42 @@ MSstatsPTM_input <- MSstatsPTM::PDtoMSstatsPTMFormat(
   )
 )
 
-# Briefly check input
-head(MSstatsPTM_input)
+MSstatsPTM_input_filtered <- MSstatsPTM::PDtoMSstatsPTMFormat(
+  input = PSMs_phos_filtered,
+  annotation = annotations_phos,
+  fasta_path = paste0(input_dir, FASTA_file),
+  protein_input = PSMs_proteins,
+  annotation_protein = annotations_proteins,
+  labeling_type = "TMT",
+  mod_id = "\\(Phospho\\)",
+  use_localization_cutoff = FALSE,
+  keep_all_mods = FALSE,
+  use_unmod_peptides = FALSE,
+  fasta_protein_name = "uniprot_iso",
+  localization_cutoff = 75,
+  remove_unlocalized_peptides = TRUE,
+  useNumProteinsColumn = FALSE,
+  useUniquePeptide = TRUE,
+  summaryforMultipleRows = max,
+  removeFewMeasurements = TRUE,
+  removeOxidationMpeptides = FALSE,
+  removeProtein_with1Peptide = FALSE,
+  which_quantification = "Precursor.Area",
+  which_proteinid = "Master.Protein.Accessions",
+  use_log_file = TRUE,
+  append = FALSE,
+  verbose = TRUE,
+  log_file_path = paste0(
+    output_dir,
+    "/logs/PDtoMSstatsPTMFormat_log_",
+    format(Sys.time(), "%Y_%m_%d_%H_%M_%S"),
+    ".txt"
+  )
+)
 
 # Save the prepared data
 save(MSstatsPTM_input, file = paste0(output_dir, "PTM_preprocessed.rda"))
+save(MSstatsPTM_input_filtered, file = paste0(output_dir, "PTM_preprocessed_filtered.rda"))
 ```
 
 # Data Processing
@@ -160,6 +221,33 @@ MSstatsPTM_processed <- MSstatsPTM::dataSummarizationPTM_TMT(
 # Save the processed data
 save(MSstatsPTM_processed, file = paste0(output_dir, "PTM_processed.rda"))
 
+# Process the input
+MSstatsPTM_processed_filtered <- MSstatsPTM::dataSummarizationPTM_TMT(
+  data = MSstatsPTM_input_filtered,
+  method = "msstats",
+  global_norm = TRUE,
+  global_norm.PTM = TRUE,
+  reference_norm = TRUE,
+  reference_norm.PTM = TRUE,
+  remove_norm_channel = TRUE,
+  remove_empty_channel = TRUE,
+  MBimpute = TRUE,
+  MBimpute.PTM = TRUE,
+  maxQuantileforCensored = NULL,
+  use_log_file = TRUE,
+  append = FALSE,
+  verbose = TRUE,
+  log_file_path = paste0(
+    output_dir,
+    "/logs/proteinSummarization_log_",
+    format(Sys.time(), "%Y_%m_%d_%H_%M_%S"),
+    ".txt"
+  )
+)
+
+# Save the processed data
+save(MSstatsPTM_processed_filtered, file = paste0(output_dir, "PTM_processed_filtered.rda"))
+
 # Repeat without normalisation for normalisation plot
 # Process the input
 MSstatsPTM_processed_no_normalisation <- MSstatsPTM::dataSummarizationPTM_TMT(
@@ -189,28 +277,6 @@ MSstatsPTM_processed_no_normalisation <- MSstatsPTM::dataSummarizationPTM_TMT(
 save(MSstatsPTM_processed_no_normalisation, file = paste0(output_dir, "PTM_processed_no_normalisation.rda"))
 ```
 
-# Data visualisation
-These plots are from functions built-in to `MSstatsPTM` and are for quality control.
-```{r data visualisation, echo = FALSE}
-# # Produces individual plots for the different proteins, each peptide shown in a different colour
-# dataProcessPlotsPTM(
-#   data=MSstatsPTM_processed,
-#   type='ProfilePlot',
-#   width = 7,
-#   height = 7,
-#   address = paste0(output_dir, "MSstatsPTM_")
-# )
-# 
-# # This produces a boxplot, of intensity by sample. Used as a basic way to check normalisation
-# dataProcessPlotsPTM(
-#   data=MSstatsPTM_processed,
-#   type='QCPlot',
-#   width = 7,
-#   height = 7,
-#   address = paste0(output_dir, "MSstatsPTM_")
-# )
-```
-
 # Model-based comparison, and adjusted p-value
 ```{r model based comparison, echo = FALSE}
 # Run the test
@@ -230,24 +296,38 @@ test_MSstatsPTM <- groupComparisonPTM(
   )
 )
 
+# Run the test
+test_MSstatsPTM_filtered <- groupComparisonPTM(
+  data = MSstatsPTM_processed_filtered,
+  data.type = "TMT",
+  contrast.matrix = contrast_matrix,
+  moderated = FALSE, # Steph: TRUE
+  adj.method = "BH",
+  use_log_file = TRUE,
+  verbose = TRUE,
+  log_file_path = paste0(
+    output_dir,
+    "/logs/groupComparison_log_",
+    format(Sys.time(), "%Y_%m_%d_%H_%M_%S"),
+    ".txt"
+  )
+)
+
 # Extracting the comparison results
 MSstatsPTM_results <- test_MSstatsPTM$ADJUSTED.Model
 MSstatsPTM_raw_results <- test_MSstatsPTM$PTM.Model
-
-# Add column for up/downregulated or non-significant
-MSstatsPTM_results$Dif <- ifelse(MSstatsPTM_results$log2FC > 1 & MSstatsPTM_results$adj.pvalue < 0.05,
-  "Upregulated",
-  ifelse(MSstatsPTM_results$log2FC < -1 & MSstatsPTM_results$adj.pvalue < 0.05,
-    "Downregulated",
-    "Not significant"
-  )
-)
+MSstatsPTM_results_filtered <- test_MSstatsPTM_filtered$ADJUSTED.Model
+MSstatsPTM_raw_results_filtered <- test_MSstatsPTM_filtered$PTM.Model
 
 # save the results
 save(MSstatsPTM_results, file = paste0(output_dir, "MSstatsPTM_results.rda"))
 write.csv(MSstatsPTM_results, file = paste0(output_dir, "MSstatsPTMResults.csv"))
 save(MSstatsPTM_raw_results, file = paste0(output_dir, "MSstatsPTM_raw_results.rda"))
 write.csv(MSstatsPTM_raw_results, file = paste0(output_dir, "MSstatsPTMrawResults.csv"))
+save(MSstatsPTM_results_filtered, file = paste0(output_dir, "MSstatsPTM_results_filtered.rda"))
+write.csv(MSstatsPTM_results_filtered, file = paste0(output_dir, "MSstatsPTMResults_filtered.csv"))
+save(MSstatsPTM_raw_results_filtered, file = paste0(output_dir, "MSstatsPTM_raw_results_filtered.rda"))
+write.csv(MSstatsPTM_raw_results_filtered, file = paste0(output_dir, "MSstatsPTMrawResults_filtered.csv"))
 ```
 
 # Session information
